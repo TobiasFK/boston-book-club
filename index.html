@@ -108,6 +108,11 @@ h1 { font-size: clamp(34px, 8vw, 54px); font-weight: 800; line-height: 1; letter
 .nm-book .cover { width: 96px; }
 .nm-book .cover.gen .gt { font-size: 12px; }
 .nm-bk { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.nm-badge { border: 0; cursor: pointer; }
+.nm-badge:hover { background: color-mix(in srgb, var(--star) 30%, transparent); }
+.res-card { position: relative; width: min(520px, 100%); max-height: 88vh; overflow-y: auto; background: var(--surface); color: var(--ink); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.4); }
+.res-card h2 { font-size: 22px; line-height: 1.2; }
+.res-card .muted { margin: 0; }
 .nm-badge { align-self: flex-start; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--stamp); background: color-mix(in srgb, var(--star) 18%, transparent); border-radius: 999px; padding: 3px 9px; }
 .nm-title { font-size: clamp(22px, 5vw, 32px); font-weight: 800; line-height: 1.08; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .nm-author { color: var(--muted); font-size: 15px; }
@@ -653,6 +658,14 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
         </form>
       </section>
     </div>
+  </div>
+</div>
+
+<div class="lightbox" id="voteResults" hidden>
+  <div class="lb-backdrop" data-res-close></div>
+  <div class="res-card" role="dialog" aria-modal="true" aria-labelledby="vrHead">
+    <div class="ed-top"><h2 id="vrHead">How the club voted</h2><button class="sheet-close" type="button" data-res-close aria-label="Close">×</button></div>
+    <div id="vrBody"></div>
   </div>
 </div>
 
@@ -1493,7 +1506,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       : days != null ? `<div class="nm-count past"><span class="l">This meeting has passed</span></div>` : "";
     card.innerHTML = `<div class="nm-head"><span class="eyebrow nm-eyebrow">Next meeting</span>${editBtn}</div>
       <div class="nm-book">${coverEl}<div class="nm-bk">
-        ${fromVote ? `<span class="nm-badge">★ The club picked this</span>` : ""}
+        ${fromVote ? `<button class="nm-badge" type="button" id="nmResults" aria-haspopup="dialog" aria-label="The club picked this. See how the club voted">★ The club picked this ›</button>` : ""}
         <h2 class="nm-title">${book ? esc(book.title) : "Book to be decided"}</h2>
         ${book && book.author ? `<div class="nm-author">${esc(book.author)}</div>` : ""}
       </div></div>
@@ -1607,7 +1620,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   $("sheet").addEventListener("click", e => { if (e.target.closest("[data-close]")) closeSheet(); const t = e.target.closest("[data-tab]"); if (t) showTab(t.dataset.tab); });
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
-    if (!$("menuList").hidden) closeMenu(true); else if (!$("bookEditor").hidden) closeEditor(); else if (!$("lightbox").hidden) closeLightbox(); else if (!$("sheet").hidden) closeSheet();
+    if (!$("menuList").hidden) closeMenu(true); else if (!$("voteResults").hidden) closeResults(); else if (!$("bookEditor").hidden) closeEditor(); else if (!$("lightbox").hidden) closeLightbox(); else if (!$("sheet").hidden) closeSheet();
   });
 
   // Goodreads: look up the book's page via Open Library (Goodreads itself blocks browser requests).
@@ -1635,6 +1648,28 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const url = await findGoodreads(title, author);
     if (url) await guard(() => state.db.doc("books/" + bookId).update({ goodreads: { url } }));
   }
+
+  // "The club picked this": anyone can open the results of the vote behind the next book, once announced
+  let resFocus = null;
+  function openResults() {
+    const n = state.next || {}, rid = n.pending && n.pending.roundId;
+    const r = rid && V.rounds.find(x => x.id === rid);
+    if (!r || r.announced === false) return;
+    const res = r.results || [], max = Math.max(1, ...res.map(y => y.points)), k = r.picks || 1;
+    const pickTitle = (r.pick && r.pick.title) || (res[0] && res[0].title);
+    $("vrBody").innerHTML = `<p class="muted">${[r.theme ? "Theme: " + r.theme : "", `${r.ballotCount || 0} ballot${r.ballotCount === 1 ? "" : "s"}`, k > 1 ? `ranked picks, ${Array.from({ length: k }, (_, i) => k - i).join("/")} points` : "one pick each"].filter(Boolean).map(esc).join(" · ")}</p>
+      <ol class="results">${res.map((y, i) => `<li class="res${y.title === pickTitle ? " win" : ""}"><span class="res-pos">${i + 1}</span><div class="res-main"><span class="res-title">${esc(y.title)}</span>${y.author ? `<span class="sg-meta">${esc(y.author)}${y.pages ? ` · ${esc(y.pages)} pages` : ""}</span>` : ""}<span class="res-bar"><span style="width:${(y.points / max) * 100}%"></span></span><span class="res-sub">${y.points} pt${y.points === 1 ? "" : "s"} · ${y.firsts} first-choice · on ${y.voters} ballot${y.voters === 1 ? "" : "s"}</span></div></li>`).join("")}</ol>`;
+    resFocus = document.activeElement;
+    $("voteResults").hidden = false; document.documentElement.style.overflow = "hidden";
+    $("voteResults").querySelector(".sheet-close").focus();
+  }
+  function closeResults() {
+    $("voteResults").hidden = true;
+    if ($("sheet").hidden && $("lightbox").hidden && $("bookEditor").hidden) document.documentElement.style.overflow = "";
+    if (resFocus && resFocus.focus) resFocus.focus();
+  }
+  document.addEventListener("click", e => { if (e.target.closest("#nmResults")) openResults(); });
+  $("voteResults").addEventListener("click", e => { if (e.target.closest("[data-res-close]")) closeResults(); });
 
   // Past votes (organizers only)
   function renderPast() {
