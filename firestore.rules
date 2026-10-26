@@ -48,10 +48,10 @@ service cloud.firestore {
       allow update: if organizer()
         || (member() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ratings']));
     }
-    // Suggestions are sealed while a round collects them: only the organizer's count/tally can read them.
-    // Everyone in the club can read them once the round moves to voting.
     match /rounds/{rid}/suggestions/{id} {
-      allow read: if organizer() || (inClub() && phase(rid) != 'suggest');
+      // While suggestions are open nobody can read them (organizers included). After the organizer closes
+      // suggestions ("review") only organizers can, to tidy duplicates; everyone can once voting opens.
+      allow read: if (organizer() && phase(rid) != 'suggest') || (inClub() && phase(rid) in ['vote', 'closed']);
       allow create: if inClub()
         && request.resource.data.keys().hasOnly(['roundId', 'title', 'author', 'pages', 'description', 'createdAt'])
         && request.resource.data.roundId == rid

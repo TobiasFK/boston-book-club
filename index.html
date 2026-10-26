@@ -1208,7 +1208,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   // Organizer only: add count markers for any suggestion saved without one (e.g. from an older cached page).
   let healing = false;
   async function healTally(r) {
-    if (!V.isAdmin || healing || r.phase !== "suggest" || !Array.isArray(V.tallyIds)) return;
+    if (!V.isAdmin || healing || r.phase !== "review" || !Array.isArray(V.tallyIds)) return;
     const missing = V.suggestions.filter(x => !V.tallyIds.includes(x.id));
     if (!missing.length) return;
     healing = true;
@@ -1226,7 +1226,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     if (!r) return;
     // Everyone can see how many books are in (tally markers carry no details).
     tallyUnsub = state.db.collection("rounds/" + r.id + "/tally").onSnapshot(snap => { V.tallyIds = snap.docs.map(d => d.id); V.sugCount = V.tallyIds.length; healTally(r); renderVote(); }, () => {});
-    if (r.phase === "suggest" && !V.isAdmin) { V.sealed = true; return; }
+    if (r.phase === "suggest" || (r.phase === "review" && !V.isAdmin)) { V.sealed = true; return; }
     sugUnsub = state.db.collection("rounds/" + r.id + "/suggestions").onSnapshot(
       snap => { V.suggestions = snap.docs.map(d => ({ id: d.id, roundId: r.id, ...d.data() })); healTally(r); renderVote(); },
       () => { V.sealed = true; renderVote(); });
@@ -1289,7 +1289,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     $("votePanel").hidden = quiet && !V.isAdmin;
     $("votePanel").classList.toggle("quiet", quiet);
     // While suggestions or voting are open, the vote sits at the very top, above the next meeting.
-    const live = phase === "suggest" || phase === "vote";
+    const live = phase === "suggest" || phase === "review" || phase === "vote";
     const panel = $("votePanel"), anchor = live ? $("nextCard") : document.querySelector('section.panel[aria-labelledby="shelfHead"]');
     if (panel.nextElementSibling !== anchor) anchor.parentNode.insertBefore(panel, anchor);
     panel.classList.toggle("on-top", live);
@@ -1317,19 +1317,26 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       pruneRemoved(r);
       const ownItems = (myRec(r).items || []).filter(x => myRec(r).suggestions.includes(x.id));
       const n = V.sugCount != null ? V.sugCount : sugs.length;
-      const sealedNote = `<div class="sealed"><strong>${n} book${n === 1 ? "" : "s"} suggested so far</strong><span>${V.isAdmin ? "Titles stay hidden until you open voting." : "You'll see every suggested book when voting opens."}</span></div>`;
-      const review = V.isAdmin && canAct ? (V.reviewSugs
-        ? `<div class="review"><div class="review-head"><strong>All suggestions</strong><button class="link-btn quiet" type="button" data-vact="review-off">Hide</button></div>
-            <p class="muted">Only organizers can see this. Remove duplicates or anything that doesn't fit the theme.</p>
-            ${sugs.length ? `<div class="sg-list">${sugs.map(x => sugCard(x, r, { side: `<div class="sg-side">${V.confirm === "del:" + x.id ? `<button class="link-btn danger-link" type="button" data-vact="del-yes" data-id="${esc(x.id)}">Confirm remove</button><button class="link-btn quiet" type="button" data-vact="cancel">Keep</button>` : `<button class="link-btn quiet" type="button" data-vact="del" data-id="${esc(x.id)}">Remove</button>`}</div>` })).join("")}</div>` : `<p class="muted">No suggestions yet.</p>`}</div>`
-        : `<button class="link-btn" type="button" data-vact="review-on">Review suggestions (organizers only)</button>`) : "";
-      list.innerHTML = sealedNote + review + (ownItems.length ? `<p class="sub-head">Your suggestions</p><div class="sg-list">${ownItems.map(s => {
+      const sealedNote = `<div class="sealed"><strong>${n} book${n === 1 ? "" : "s"} suggested so far</strong><span>${V.isAdmin ? "Titles stay sealed, even for you, until you close suggestions." : "You'll see every suggested book when voting opens."}</span></div>`;
+      list.innerHTML = sealedNote + (ownItems.length ? `<p class="sub-head">Your suggestions</p><div class="sg-list">${ownItems.map(s => {
         const mine = true;
         const side = (mine || V.isAdmin) && canAct ? `<div class="sg-side">${V.confirm === "del:" + s.id ? `<button class="link-btn danger-link" type="button" data-vact="del-yes" data-id="${esc(s.id)}">Confirm remove</button><button class="link-btn quiet" type="button" data-vact="cancel">Keep</button>` : `<button class="link-btn quiet" type="button" data-vact="del" data-id="${esc(s.id)}">Remove</button>`}</div>` : "";
         return sugCard(s, r, { side });
       }).join("")}</div>` : "");
-      admin.innerHTML = V.isAdmin && !V.startMode ? (confirmBox("cancel-round", "Cancel this round? All suggestions in it will be deleted and the section will be hidden from members again.", "Cancel round") || confirmBox("tovote", `Close suggestions and open voting on ${sugs.length} books? Everyone gets ${picksFor(sugs.length)} ranked pick${picksFor(sugs.length) > 1 ? "s" : ""}.`, "Open voting")
-        || `<button class="btn" type="button" data-vact="tovote"${sugs.length < 2 ? " disabled" : ""}>Close suggestions & start voting</button>${sugs.length < 2 ? `<span class="muted">Needs at least 2 suggestions.</span>` : ""}<button class="link-btn" type="button" data-vact="edit-theme">${r.theme || r.when || r.where ? "Edit round details" : "Add theme, time & place"}</button>${cancelBtn}`) : "";
+      admin.innerHTML = V.isAdmin && !V.startMode ? (confirmBox("cancel-round", "Cancel this round? All suggestions in it will be deleted and the section will be hidden from members again.", "Cancel round") || confirmBox("toreview", `Close suggestions with ${n} book${n === 1 ? "" : "s"} in? Nobody can suggest after this. You'll then see the list and can remove duplicates before opening voting.`, "Close suggestions")
+        || `<button class="btn" type="button" data-vact="toreview"${n < 2 ? " disabled" : ""}>Close suggestions</button>${n < 2 ? `<span class="muted">Needs at least 2 suggestions.</span>` : ""}<button class="link-btn" type="button" data-vact="edit-theme">${r.theme || r.when || r.where ? "Edit round details" : "Add theme, time & place"}</button>${cancelBtn}`) : "";
+    } else if (phase === "review") {
+      const sugs = roundSugs(r), n = V.sugCount != null ? V.sugCount : sugs.length;
+      head.innerHTML = `<h2>Next book: suggestions closed</h2>${themeHTML}<p class="muted">${V.isAdmin ? "Check the list and remove duplicates or anything that doesn't fit. Members can't see it yet." : "Voting opens soon. You'll see every suggested book then."}</p>`;
+      if (!V.isAdmin) {
+        list.innerHTML = `<div class="sealed"><strong>${n} book${n === 1 ? "" : "s"} suggested</strong><span>Suggestions are closed. Voting opens soon.</span></div>`;
+        admin.innerHTML = "";
+      } else {
+        list.innerHTML = sugs.length ? `<div class="sg-list">${sugs.map(x => sugCard(x, r, { side: canAct ? `<div class="sg-side">${V.confirm === "del:" + x.id ? `<button class="link-btn danger-link" type="button" data-vact="del-yes" data-id="${esc(x.id)}">Confirm remove</button><button class="link-btn quiet" type="button" data-vact="cancel">Keep</button>` : `<button class="link-btn quiet" type="button" data-vact="del" data-id="${esc(x.id)}">Remove</button>`}</div>` : "" })).join("")}</div>` : `<p class="muted">Loading suggestions…</p>`;
+        admin.innerHTML = V.startMode ? "" : (confirmBox("cancel-round", "Cancel this round? All suggestions in it will be deleted and the section will be hidden from members again.", "Cancel round")
+          || confirmBox("tovote", `Open voting on ${sugs.length} books? Everyone gets ${picksFor(sugs.length)} ranked pick${picksFor(sugs.length) > 1 ? "s" : ""}.`, "Open voting")
+          || `<button class="btn" type="button" data-vact="tovote"${sugs.length < 2 ? " disabled" : ""}>Open voting</button>${sugs.length < 2 ? `<span class="muted">Needs at least 2 books.</span>` : ""}<button class="link-btn" type="button" data-vact="reopen">Reopen suggestions</button><button class="link-btn" type="button" data-vact="edit-theme">Edit round details</button>${cancelBtn}`);
+      }
     } else if (phase === "vote") {
       const sugs = roundSugs(r), k = r.picks || 1, rec = myRec(r);
       const saved = rec.ballotId ? (V.ballots.find(b => b.id === rec.ballotId) || null) : null;
@@ -1402,14 +1409,13 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   async function voteAction(act, t) {
     const r = currentRound();
     if (act === "cancel") { V.confirm = null; return renderVote(); }
-    if (act === "review-on") { V.reviewSugs = true; return renderVote(); }
-    if (act === "review-off") { V.reviewSugs = false; V.confirm = null; return renderVote(); }
     if (act === "start") { if (r && r.phase !== "closed") return; V.startMode = "new"; ["stTheme", "stWhen", "stWhere"].forEach(id => $(id).value = ""); renderVote(); $("stTheme").focus(); return; }
     if (act === "cancel-round") { V.confirm = "cancel-round"; return renderVote(); }
     if (act === "cancel-round-yes") {
       V.confirm = null; V.sgOpen = false;
       if (!r || r.phase === "closed") return renderVote();
-      for (const x of roundSugs(r)) await guard(() => state.db.batch([
+      const ids = Array.from(new Set([...roundSugs(r).map(x => x.id), ...(V.tallyIds || [])]));
+      for (const x of ids.map(id => ({ id }))) await guard(() => state.db.batch([
         { op: "delete", path: "rounds/" + r.id + "/suggestions/" + x.id },
         { op: "delete", path: "rounds/" + r.id + "/tally/" + x.id }
       ]));
@@ -1430,6 +1436,9 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       if (ok && rec.suggestions.includes(id)) { V.mine[r.id] = { ...rec, suggestions: rec.suggestions.filter(x => x !== id), items: (rec.items || []).filter(x => x.id !== id) }; await guard(() => saveMine(r.id)); }
       return renderVote();
     }
+    if (act === "toreview") { V.confirm = "toreview"; return renderVote(); }
+    if (act === "toreview-yes") { V.confirm = null; V.sgOpen = false; return guard(() => state.db.doc("rounds/" + r.id).update({ phase: "review" })); }
+    if (act === "reopen") { V.confirm = null; return guard(() => state.db.doc("rounds/" + r.id).update({ phase: "suggest" })); }
     if (act === "tovote") { V.confirm = "tovote"; return renderVote(); }
     if (act === "tovote-yes") { V.confirm = null; const n = roundSugs(r).length; return guard(() => state.db.doc("rounds/" + r.id).update({ phase: "vote", picks: picksFor(n), options: n })); }
     if (act === "pick") { V.touched = true; const id = t.dataset.id; if (!V.draft.includes(id) && V.draft.length < (r.picks || 1)) V.draft = [...V.draft, id]; return renderVote(); }
