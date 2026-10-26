@@ -1,0 +1,1495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="The Boston Book Club: our shelf, ratings and the vote for the next book.">
+<style>
+:root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+</style>
+<title>Boston Book Club</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one reading column; numbered highlights up top, then members, then each book as a library card with its cover, due-date stamp, club average and member ratings. */
+:root {
+  --bg: #EDF0EB;
+  --surface: #FAFBF9;
+  --ink: #17242A;
+  --muted: #586763;
+  --line: #CBD3CD;
+  --accent: #1E5A48;
+  --accent-ink: #FFFFFF;
+  --star: #C4850E;
+  --star-off: #D6DCD7;
+  --stamp: #A0322F;
+  --danger: #A0322F;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F171A; --surface: #162125; --ink: #E3EAE6; --muted: #93A39E; --line: #2A393C;
+    --accent: #72C2A2; --accent-ink: #0F171A; --star: #F0B33C; --star-off: #34444A;
+    --stamp: #E58378; --danger: #E58378; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F171A; --surface: #162125; --ink: #E3EAE6; --muted: #93A39E; --line: #2A393C;
+  --accent: #72C2A2; --accent-ink: #0F171A; --star: #F0B33C; --star-off: #34444A;
+  --stamp: #E58378; --danger: #E58378; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+.wrap {
+  max-width: 780px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 64px;
+  display: flex; flex-direction: column; gap: 28px;
+}
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Masthead */
+.mast { display: flex; flex-direction: column; gap: 10px; }
+.title-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+h1 { font-size: clamp(34px, 8vw, 54px); font-weight: 800; line-height: 1; letter-spacing: -.02em; }
+.link-btn { background: none; border: 0; padding: 2px 0; color: var(--accent); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
+.rename { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Highlights 1-2-3: compact strip */
+.highlights { list-style: none; margin: 6px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.hl { background: var(--surface); padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.hl-label { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hl-label b { color: var(--accent); font-family: var(--display); font-size: 13px; margin-right: 2px; }
+.hl-title { font-family: var(--display); font-weight: 600; font-size: 15px; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.hl-title.hl-big { font-size: 24px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.hl-score { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+.hl-score b { color: var(--ink); font-size: 13px; }
+
+/* Next meeting card */
+.next { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 6px; }
+.next .cal { width: 64px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); text-align: center; background: var(--bg); flex-shrink: 0; }
+.next .cal .mo { display: block; background: var(--stamp); color: var(--surface); font-family: var(--mono); font-size: 11px; letter-spacing: .12em; padding: 3px 0; }
+.next .cal .dy { display: block; font-family: var(--display); font-weight: 800; font-size: 30px; line-height: 1.15; padding-top: 2px; font-variant-numeric: tabular-nums; }
+.next .cal .wd { display: block; font-family: var(--mono); font-size: 10.5px; color: var(--muted); padding-bottom: 4px; text-transform: uppercase; letter-spacing: .08em; }
+.next-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.next-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.next-when { font-family: var(--display); font-weight: 600; font-size: 18px; line-height: 1.2; }
+.next-rel { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+.next-book { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 10px; align-items: center; }
+.next-book .t { font-family: var(--display); font-weight: 600; font-size: 17px; line-height: 1.2; overflow-wrap: anywhere; }
+.next-book .a { font-size: 13px; color: var(--muted); }
+.next-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; }
+.next-facts div { display: flex; flex-direction: column; min-width: 0; }
+.next-facts .v { overflow-wrap: anywhere; }
+.next-facts a { color: var(--accent); text-underline-offset: 3px; }
+.next-empty { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; }
+.next-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; background: var(--surface); border: 1px solid var(--accent); border-radius: 14px; padding: 16px; margin-top: 6px; }
+.next-form .full { grid-column: 1 / -1; }
+.next-form-act { display: flex; gap: 8px; }
+.highlights.in-stats { margin: 0; }
+@media (max-width: 480px) { .next { gap: 12px; padding: 14px; } .next .cal { width: 56px; } .next-form { grid-template-columns: minmax(0, 1fr); } }
+
+
+/* Featured next meeting: book chosen + date set */
+.next.featured { grid-template-columns: 132px minmax(0, 1fr); gap: 20px; padding: 20px; border: 1.5px solid var(--star); background:
+  linear-gradient(135deg, color-mix(in srgb, var(--star) 14%, var(--surface)) 0%, var(--surface) 60%); position: relative; overflow: hidden; }
+.next.featured .feat-cover .cover { width: 132px; box-shadow: inset 4px 0 0 rgba(0,0,0,.18), 0 8px 22px rgba(0,0,0,.25); }
+.next.featured .feat-cover .cover.gen .gt { font-size: 15px; }
+.feat-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.feat-eyebrow { color: var(--stamp); font-weight: 600; }
+.feat-title { font-size: clamp(26px, 5.5vw, 38px); font-weight: 800; line-height: 1.05; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.feat-author { color: var(--muted); font-size: 16px; }
+.feat-when { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; margin-top: 8px; }
+.feat-when .cal { width: 54px; }
+.feat-when .cal .dy { font-size: 24px; }
+.feat-count { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; }
+.feat-count .n { font-family: var(--display); font-weight: 800; font-size: 34px; line-height: 1; color: var(--star); font-variant-numeric: tabular-nums; }
+.feat-count span:last-child { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+@media (max-width: 480px) {
+  .next.featured { grid-template-columns: 96px minmax(0, 1fr); gap: 14px; padding: 16px; }
+  .next.featured .feat-cover .cover { width: 96px; }
+  .feat-when { grid-column: 1 / -1; }
+  .feat-count .n { font-size: 28px; }
+}
+/* Drawers: stats, members, add book */
+.drawers { display: flex; flex-direction: column; gap: 10px; margin-top: -12px; }
+.drawer-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+.drawer-btn::after { content: "▾"; color: var(--accent); font-size: 12px; transition: transform .15s; }
+.drawer-btn[aria-expanded="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.drawer-btn[aria-expanded="true"]::after { transform: rotate(180deg); color: inherit; }
+.drawer-btn .cnt { font-weight: 400; font-family: var(--mono); font-size: 12px; opacity: .75; }
+.drawer { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.drawer-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.drawer .book-form { padding: 0; }
+
+/* Stats */
+.stats { display: flex; flex-direction: column; gap: 22px; }
+.st-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.st-tile { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.st-k { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.st-v { font-family: var(--display); font-weight: 800; font-size: 26px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.st-v.t { font-size: 16px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.st-s { font-size: 13px; color: var(--muted); }
+.st-sec { display: flex; flex-direction: column; gap: 10px; }
+.st-sec h3 { font-size: 17px; font-weight: 600; }
+.awards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+.award { border-left: 3px solid var(--star); padding: 4px 0 4px 12px; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.award .who { font-family: var(--display); font-weight: 600; font-size: 17px; }
+.award .why { font-size: 13px; color: var(--muted); }
+.hist { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 4px; align-items: end; height: 130px; }
+.hist .col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; height: 100%; min-width: 0; }
+.hist .bar { width: 100%; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; }
+.hist .bar.top { background: var(--star); }
+.hist .n { font-family: var(--mono); font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hist-x { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 4px; font-family: var(--mono); font-size: 10px; color: var(--muted); text-align: center; border-top: 1px solid var(--line); padding-top: 4px; }
+.years { display: flex; flex-direction: column; gap: 6px; }
+.yr { display: grid; grid-template-columns: 44px minmax(0, 1fr) 40px; gap: 10px; align-items: center; font-variant-numeric: tabular-nums; }
+.yr .y { font-family: var(--mono); font-size: 13px; }
+.yr .track { height: 14px; background: var(--bg); border-radius: 7px; overflow: hidden; }
+.yr .fillbar { height: 100%; background: var(--accent); border-radius: 7px; }
+.yr .v { font-family: var(--mono); font-size: 13px; text-align: right; }
+.yr .c { grid-column: 2 / -1; font-size: 12px; color: var(--muted); margin-top: -4px; }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+table.mt { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 460px; }
+table.mt th, table.mt td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.mt tr:last-child td { border-bottom: 0; }
+table.mt th { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+table.mt td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.mt tr.inactive td:first-child { color: var(--muted); }
+.st-note { font-size: 12px; color: var(--muted); margin: 0; }
+
+/* Covers */
+.cover { width: 72px; aspect-ratio: 2 / 3; max-width: 100%; border-radius: 2px 6px 6px 2px; object-fit: cover; display: block; flex-shrink: 0; box-shadow: inset 4px 0 0 rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.15); background: var(--line); }
+.cover.sm { width: 40px; }
+.cover.gen { background: var(--c1); color: var(--c2); padding: 9px 6px 8px 9px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
+.cover.gen .gt { font-family: var(--display); font-weight: 800; font-size: 10px; line-height: 1.1; text-transform: uppercase; letter-spacing: .02em; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+.cover.gen .ga { font-family: var(--mono); font-size: 7px; letter-spacing: .08em; text-transform: uppercase; opacity: .8; }
+.cover.gen.sm { padding: 5px 3px 4px 6px; }
+.cover.gen.sm .gt { font-size: 6px; -webkit-line-clamp: 4; }
+.cover.gen.sm .ga { display: none; }
+
+/* Panels */
+.panel { display: flex; flex-direction: column; gap: 12px; }
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.panel-head .right { display: flex; gap: 12px; align-items: baseline; }
+h2 { font-size: 22px; font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 6px 5px 12px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; font-size: 15px; }
+.chip.plain { padding-right: 12px; }
+.chip button { border: 0; background: none; color: var(--muted); width: 26px; height: 26px; border-radius: 50%; font-size: 16px; line-height: 1; }
+.chip button:hover { background: var(--bg); color: var(--danger); }
+.chip.confirm { border-color: var(--danger); padding-right: 8px; }
+.chip.confirm .yes { width: auto; padding: 0 8px; border-radius: 999px; color: var(--danger); font-weight: 700; font-size: 14px; }
+.chip.confirm .no { width: auto; padding: 0 8px; border-radius: 999px; font-size: 14px; }
+.reorder { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.reorder li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 6px 8px 6px 12px; }
+.reorder li.is-old .nm { color: var(--muted); }
+.reorder li.confirming { grid-template-columns: minmax(0, 1fr) auto; }
+.status { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 10px; font-size: 13px; white-space: nowrap; }
+.status[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.reorder .moves .rm { color: var(--danger); }
+.reorder .confirm-row { display: flex; gap: 6px; }
+.chip.old { background: none; color: var(--muted); border-style: dashed; }
+.sub-head { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 6px 0 0; }
+.rate.old .who { color: var(--muted); font-weight: 400; }
+.rate .tag { font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-left: 4px; }
+.members-box { display: flex; flex-direction: column; gap: 8px; }
+details.members-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+details.members-panel summary { list-style: none; cursor: pointer; padding: 14px 16px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: baseline; }
+details.members-panel summary::-webkit-details-marker { display: none; }
+details.members-panel summary::after { content: "▾"; color: var(--accent); font-size: 18px; transition: transform .15s; }
+details.members-panel[open] summary::after { transform: rotate(180deg); }
+.members-body { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+.members-actions { display: flex; justify-content: flex-end; }
+.members-actions:has(> [hidden]:only-child) { display: none; }
+.reorder .since { grid-column: 2 / -1; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); min-width: 0; }
+.reorder .since select { flex: 1 1 auto; min-width: 0; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 14px; color: var(--ink); }
+.chip .since-tag { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.reorder li + li { border-top: 1px solid var(--line); }
+.reorder .pos { font-family: var(--mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.reorder .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reorder .moves { display: flex; gap: 4px; }
+.reorder .moves button { width: 40px; height: 36px; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; font-size: 16px; }
+.reorder .moves button:disabled { opacity: .3; cursor: default; }
+.inline-form { display: flex; gap: 8px; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field label { font-size: 13px; color: var(--muted); }
+input[type="text"], input[type="month"], select.plain {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; min-width: 0; width: 100%;
+}
+.inline-form input { flex: 1 1 180px; width: auto; }
+.btn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 9px 16px; font-weight: 700; }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.ghost { background: none; color: var(--accent); border: 1px solid var(--line); }
+
+details.add { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+details.add summary { list-style: none; padding: 14px 16px; font-family: var(--display); font-weight: 600; font-size: 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+details.add summary::-webkit-details-marker { display: none; }
+details.add summary::after { content: "+"; font-family: var(--mono); font-size: 22px; color: var(--accent); }
+details.add[open] summary::after { content: "–"; }
+.book-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 16px 16px; }
+.book-form .full { grid-column: 1 / -1; }
+@media (max-width: 520px) { .book-form { grid-template-columns: minmax(0, 1fr); } }
+
+.toolbar { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: 14px; color: var(--muted); }
+.seg[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+/* Book cards */
+.shelf { display: flex; flex-direction: column; gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+.card-top { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto; gap: 18px; align-items: start; }
+.card-top .cover { width: 112px; }
+.card-top .cover.gen .gt { font-size: 14px; }
+.card-top .cover.gen .ga { font-size: 9px; }
+.card-top .cover.gen { padding: 12px 8px 10px 13px; }
+.book-meta { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.book-title { font-size: 22px; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.book-author { color: var(--muted); overflow-wrap: anywhere; }
+.stamp-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+.stamp-row:empty { display: none; }
+/* Reading date: quiet label in the card's top-right corner */
+.card { position: relative; }
+.read-cal { position: absolute; top: 14px; right: 14px; display: inline-flex; flex-direction: column; gap: 4px; align-items: center; padding: 6px 9px 5px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line);
+  font-family: var(--mono); font-size: 11px; letter-spacing: .12em; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.read-cal .rc-mo { color: var(--stamp); font-weight: 600; }
+.read-cal .rc-yr { color: var(--muted); }
+.card.has-cal .avg { padding-top: 46px; }
+.picked { font-size: 13px; color: var(--muted); }
+.avg { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.avg .num { font-family: var(--display); font-weight: 800; font-size: 40px; line-height: 1; font-variant-numeric: tabular-nums; }
+.avg .num.none { color: var(--muted); font-size: 28px; }
+.avg .of { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+.stars { position: relative; display: inline-block; font-size: 18px; line-height: 1; letter-spacing: 2px; color: var(--star-off); white-space: nowrap; }
+.stars .fill { position: absolute; inset: 0 auto 0 0; overflow: hidden; color: var(--star); }
+
+.ratings { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.rate { position: relative; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rate:has(select:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rate:hover { border-color: var(--accent); }
+.rate.locked:hover { border-color: var(--line); }
+.rate .who { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rate .line { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.rate .val { font-family: var(--mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rate.empty .val { color: var(--accent); }
+.rate select { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+.rate.locked select { display: none; }
+
+.card-foot { display: flex; justify-content: flex-end; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 14px; }
+.card-foot .link-btn.quiet { color: var(--muted); }
+.card-foot .danger { color: var(--danger); }
+
+.empty-state { border: 1.5px dashed var(--line); border-radius: 12px; padding: 28px 20px; text-align: center; color: var(--muted); display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.empty-state strong { color: var(--ink); font-family: var(--display); font-size: 20px; font-weight: 600; }
+.notice { font-size: 14px; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); }
+.notice.err { border-color: var(--danger); color: var(--danger); }
+.muted { color: var(--muted); font-size: 14px; margin: 0; }
+@media (max-width: 480px) {
+  .card { padding: 14px; }
+  .card.has-cal .avg { padding-top: 0; }
+  .card.has-cal .book-meta { padding-right: 52px; }
+  .read-cal { top: 11px; right: 11px; font-size: 10.5px; padding: 5px 7px 4px; }
+  .card-top { grid-template-columns: 84px minmax(0, 1fr); gap: 14px; }
+  .card-top .cover { width: 84px; }
+  .card-top .cover.gen .gt { font-size: 11px; }
+  .card-top .avg { grid-column: 2; grid-row: 2; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; text-align: left; min-width: 0; }
+  .card-top .cover-btn { grid-row: 1 / span 2; }
+  .book-title { font-size: 19px; }
+  .avg .num { font-size: 32px; }
+  .hl { padding: 9px 9px; }
+  .hl-title { font-size: 13.5px; }
+  .hl-label { font-size: 9.5px; letter-spacing: .04em; }
+}
+
+
+/* Cover zoom */
+.cover-btn { border: 0; padding: 0; background: none; position: relative; cursor: zoom-in; display: block; border-radius: 2px 6px 6px 2px; }
+.cover-btn:hover .cover { filter: brightness(1.05); }
+.cover-busy { position: absolute; inset: auto 4px 4px 4px; background: rgba(0,0,0,.7); color: #fff; font-size: 11px; border-radius: 4px; padding: 2px 4px; text-align: center; }
+.lightbox { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.lightbox[hidden] { display: none; }
+.lb-backdrop { position: absolute; inset: 0; background: rgba(8, 14, 16, .8); }
+.lb-fig { position: relative; margin: 0; display: flex; flex-direction: column; align-items: center; gap: 14px; max-width: 100%; }
+.lb-art img, .lb-art .cover { width: auto; max-width: min(420px, 86vw); max-height: 68vh; height: auto; aspect-ratio: auto; border-radius: 4px 10px 10px 4px; box-shadow: 0 12px 40px rgba(0,0,0,.5); display: block; }
+.lb-art .cover.gen { width: min(300px, 70vw); aspect-ratio: 2 / 3; padding: 28px 20px 22px 30px; }
+.lb-art .cover.gen .gt { font-size: 26px; -webkit-line-clamp: 8; }
+.lb-art .cover.gen .ga { font-size: 13px; }
+.lb-fig figcaption { display: flex; flex-direction: column; align-items: center; gap: 2px; color: #fff; text-align: center; }
+.lb-title { font-family: var(--display); font-weight: 600; font-size: 20px; }
+.lb-author { font-size: 14px; opacity: .75; }
+.lb-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+.lb-actions .btn.ghost { color: #fff; border-color: rgba(255,255,255,.4); }
+.lb-close { position: absolute; top: -6px; right: -6px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(255,255,255,.15); color: #fff; font-size: 26px; line-height: 1; z-index: 1; }
+@media (prefers-reduced-motion: no-preference) { .lightbox:not([hidden]) .lb-fig { animation: lbin .16s ease-out; } @keyframes lbin { from { transform: scale(.96); opacity: 0; } to { transform: none; opacity: 1; } } }
+
+/* Goodreads */
+.gr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 2px; font-size: 13px; }
+.gr-link { color: var(--accent); font-weight: 700; text-decoration: none; }
+.gr-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Menu + sheet */
+.mast-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.mast-top .title-row { min-width: 0; }
+.mast-top .menu-wrap { flex-shrink: 0; margin-top: 6px; }
+.menu-wrap { position: relative; }
+.menu-btn[aria-expanded="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.menu-list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 210px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.16); display: flex; flex-direction: column; }
+.menu-list[hidden] { display: none; }
+.menu-list button { text-align: left; border: 0; background: none; padding: 10px 12px; border-radius: 8px; font-size: 15px; font-weight: 600; display: flex; justify-content: space-between; gap: 12px; }
+.menu-list button:hover, .menu-list button:focus-visible { background: var(--bg); outline: none; }
+.menu-list button .badge { font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--stamp); letter-spacing: .06em; text-transform: uppercase; align-self: center; }
+.menu-k { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 8px 12px 4px; }
+.menu-k + button { margin-top: 0; }
+.menu-list .menu-k:not(:first-child) { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 10px; }
+.flash { animation: flash 1.2s ease-out; }
+@keyframes flash { 0% { box-shadow: 0 0 0 3px var(--star); } 100% { box-shadow: 0 0 0 3px transparent; } }
+@media (prefers-reduced-motion: reduce) { .flash { animation: none; } }
+.menu-btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px 6px 12px; font-size: 14px; font-weight: 700; }
+.burger { display: inline-flex; flex-direction: column; gap: 3px; width: 14px; }
+.burger i { display: block; height: 2px; background: currentColor; border-radius: 1px; }
+.sheet { position: fixed; inset: 0; z-index: 50; display: flex; justify-content: flex-end; }
+.sheet[hidden] { display: none; }
+.sheet-backdrop { position: absolute; inset: 0; background: rgba(10, 18, 20, .45); }
+.sheet-panel { position: relative; width: min(560px, 100%); height: 100%; background: var(--bg); display: flex; flex-direction: column; box-shadow: -8px 0 30px rgba(0,0,0,.2);
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tab { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 700; color: var(--muted); }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tab .cnt { font-weight: 400; font-family: var(--mono); font-size: 12px; opacity: .8; }
+.sheet-close { border: 0; background: none; font-size: 28px; line-height: 1; width: 40px; height: 40px; border-radius: 50%; color: var(--muted); }
+.sheet-close:hover { background: var(--bg); color: var(--ink); }
+.sheet-body { overflow-y: auto; padding: 16px; flex: 1; overscroll-behavior: contain; }
+.sheet-body .drawer { background: none; border: 0; padding: 0; }
+@media (prefers-reduced-motion: no-preference) { .sheet:not([hidden]) .sheet-panel { animation: slidein .18s ease-out; } @keyframes slidein { from { transform: translateX(24px); opacity: .6; } to { transform: none; opacity: 1; } } }
+.vote-sec { background: var(--surface); border: 1.5px solid var(--star); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; margin-top: -8px; }
+.vote-sec.quiet { border: 1px dashed var(--line); background: none; padding: 12px 16px; }
+#addPanel { background: var(--surface); border: 1px solid var(--accent); border-radius: 12px; padding: 16px; }
+.add-mini { border: 0; background: none; color: var(--accent); font-size: 13px; font-weight: 700; padding: 4px 2px; text-decoration: underline; text-underline-offset: 3px; }
+.next-line { font-size: 14px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; }
+.next-line b { color: var(--ink); }
+.next-line a { color: var(--accent); text-underline-offset: 3px; }
+.next-line .dot { color: var(--line); }
+.theme { display: flex; flex-direction: column; gap: 2px; border-left: 3px solid var(--star); padding: 4px 0 4px 12px; margin: 4px 0; }
+.theme strong { font-family: var(--display); font-weight: 600; font-size: 18px; line-height: 1.25; }
+.start-form { display: flex; flex-direction: column; gap: 10px; border: 1px dashed var(--line); border-radius: 10px; padding: 14px; }
+#sgOpen { align-self: flex-start; }
+.start-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 480px) { .start-row { grid-template-columns: minmax(0, 1fr); } }
+.theme-facts { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 14px; margin-top: 4px; }
+.theme-facts .st-k { margin-right: 4px; }
+.vote-sec.on-top { margin-top: 6px; }
+/* Next-book vote */
+.vote-banner { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; text-align: left; border: 1.5px solid var(--star); background: var(--surface); border-radius: 12px; padding: 12px 16px; margin-top: -12px; }
+.vote-banner b { font-family: var(--display); font-size: 17px; }
+.vote-banner span { color: var(--muted); font-size: 14px; }
+#voteHead { display: flex; flex-direction: column; gap: 4px; }
+#voteHead .muted { max-width: 62ch; }
+.sg-form { border: 1px dashed var(--line); border-radius: 10px; padding: 14px !important; }
+textarea { font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; width: 100%; resize: vertical; }
+.sg-list { display: flex; flex-direction: column; gap: 8px; }
+.sg { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: start; }
+.sg.picked { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.sg-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sg-title { font-family: var(--display); font-weight: 600; font-size: 17px; line-height: 1.25; margin: 0; overflow-wrap: anywhere; }
+.sg-mine { font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-left: 8px; font-weight: 500; white-space: nowrap; }
+.sg-meta { font-size: 13px; color: var(--muted); }
+.sg-desc { margin: 4px 0 0; font-size: 14px; max-width: 65ch; }
+.sg-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.pick { border: 1px solid var(--accent); color: var(--accent); background: none; border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: 13px; white-space: nowrap; }
+.pick:disabled { opacity: .35; cursor: default; }
+.rank { font-family: var(--display); font-weight: 800; font-size: 18px; color: var(--accent); }
+.danger-link { color: var(--danger); }
+.ballot { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+.ballot-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }
+.slot { border: 1.5px dashed var(--line); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.slot.full { border-style: solid; border-color: var(--accent); background: var(--surface); }
+.slot-n { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.slot-t { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot:not(.full) .slot-t { font-weight: 400; color: var(--muted); }
+.ballot-act { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.ok { color: var(--accent); font-size: 14px; font-weight: 700; margin: 0; }
+.vote-admin { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 12px; }
+.vote-admin:empty { display: none; }
+.vconfirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.vconfirm span { flex: 1 1 220px; font-size: 14px; }
+.results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.res { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.res.win { border-color: var(--star); border-width: 1.5px; }
+.res-pos { font-family: var(--display); font-weight: 800; font-size: 22px; color: var(--muted); text-align: center; }
+.res.win .res-pos { color: var(--star); }
+.res-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.res-title { font-family: var(--display); font-weight: 600; font-size: 17px; overflow-wrap: anywhere; }
+.res-bar { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin-top: 3px; }
+.res-bar span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.res.win .res-bar span { background: var(--star); }
+.res-sub { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+details.past summary { cursor: pointer; font-size: 14px; color: var(--muted); }
+details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+@media (max-width: 480px) { .res .btn { grid-column: 2 / -1; justify-self: start; } }
+@media (prefers-reduced-motion: no-preference) {
+  .card { transition: border-color .15s; }
+}
+
+.site-foot { max-width: 780px; margin: 0 auto; padding: 8px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+</style>
+
+<script src="firebase-adapter.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <div class="mast-top">
+      <div class="title-row" id="titleRow">
+        <h1 id="clubName">Our Book Club</h1>
+        <button class="link-btn write-only" id="renameBtn" type="button">Rename</button>
+      </div>
+      <div class="menu-wrap">
+        <button class="menu-btn" id="menuBtn" type="button" aria-haspopup="menu" aria-controls="menuList" aria-expanded="false"><span class="burger" aria-hidden="true"><i></i><i></i><i></i></span>Menu</button>
+        <div class="menu-list" id="menuList" role="menu" aria-label="Go to" hidden>
+          <button role="menuitem" type="button" data-go="home">Home</button>
+          <button role="menuitem" type="button" data-go="statsPanel">Club stats</button>
+          <button role="menuitem" type="button" data-go="membersPanel">Members</button>
+        </div>
+      </div>
+    </div>
+    <form class="rename" id="renameForm" hidden>
+      <input type="text" id="renameInput" maxlength="60" aria-label="Club name" style="flex:1 1 220px;width:auto">
+      <button class="btn" type="submit">Save</button>
+      <button class="btn ghost" type="button" id="renameCancel">Cancel</button>
+    </form>
+    <section class="next" id="nextCard" aria-label="Next meeting"></section>
+    <form class="next-form" id="nextForm" hidden>
+      <div class="field"><label for="nDate">Date</label><input type="date" id="nDate"></div>
+      <div class="field"><label for="nTime">Time</label><input type="time" id="nTime"></div>
+      <div class="field full"><label for="nBook">Book</label><select class="plain" id="nBook"></select></div>
+      <div class="field"><label for="nHost">Host</label><input type="text" id="nHost" maxlength="60" list="nHostList" placeholder="Who's hosting"><datalist id="nHostList"></datalist></div>
+      <div class="field"><label for="nWhere">Where</label><input type="text" id="nWhere" maxlength="140" placeholder="Address or place"></div>
+      <div class="full next-form-act"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" id="nCancel">Cancel</button></div>
+    </form>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <section class="vote-sec" id="votePanel" aria-label="Next book vote" hidden>
+    <div id="voteHead"></div>
+    <form class="start-form" id="startForm" hidden>
+      <div class="field"><label for="stTheme">Theme (optional)</label><input type="text" id="stTheme" maxlength="120" placeholder="e.g. Books set by the sea, under 300 pages"></div>
+      <div class="start-row">
+        <div class="field"><label for="stWhen">Roughly when (optional)</label><input type="text" id="stWhen" maxlength="80" placeholder="e.g. Mid-December, a weeknight"></div>
+        <div class="field"><label for="stWhere">Roughly where (optional)</label><input type="text" id="stWhere" maxlength="120" placeholder="e.g. At Mark's in Hull"></div>
+      </div>
+      <div class="next-form-act"><button class="btn" type="submit" id="stSubmit">Open suggestions</button><button class="btn ghost" type="button" id="stCancel">Cancel</button></div>
+    </form>
+    <button class="btn" type="button" id="sgOpen" hidden>Suggest a book</button>
+    <form class="book-form sg-form" id="suggestForm" hidden>
+      <div class="field full"><label for="sgTitle">Title</label><input type="text" id="sgTitle" maxlength="140" required></div>
+      <div class="field"><label for="sgAuthor">Author</label><input type="text" id="sgAuthor" maxlength="100" required></div>
+      <div class="field"><label for="sgPages">Page length</label><input type="text" id="sgPages" maxlength="20" inputmode="numeric" placeholder="e.g. 320"></div>
+      <div class="field full"><label for="sgDesc">Short description (optional)</label><textarea id="sgDesc" rows="3" maxlength="1200" placeholder="Two to four sentences on why the club should read it"></textarea></div>
+      <div class="full next-form-act"><button class="btn" type="submit" id="sgSubmit">Submit anonymously</button><button class="btn ghost" type="button" id="sgCancel">Cancel</button></div>
+    </form>
+    <div id="voteList"></div>
+    <div class="vote-admin" id="voteAdmin"></div>
+    <div id="voteHistory"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="shelfHead">
+    <div class="panel-head">
+      <h2 id="shelfHead">The shelf</h2>
+      <button class="add-mini" id="addBookBtn" type="button" aria-expanded="false" aria-controls="addPanel" hidden>+ Add book</button>
+    </div>
+    <section class="drawer write-only" id="addPanel" aria-label="Add a book" hidden>
+      <form class="book-form" id="bookForm">
+        <div class="field full"><label for="bTitle">Title</label><input type="text" id="bTitle" maxlength="140" required></div>
+        <div class="field full"><label for="bAuthor">Author</label><input type="text" id="bAuthor" maxlength="100"></div>
+        <div class="field"><label for="bMonth">Month we read it</label><input type="month" id="bMonth"></div>
+        <div class="field"><label for="bPicked">Picked by</label><select class="plain" id="bPicked"><option value="">Nobody in particular</option></select></div>
+        <div class="full next-form-act"><button class="btn" type="submit" id="bSubmit">Add to the shelf</button><button class="btn ghost" type="button" id="bCancel">Cancel</button></div>
+      </form>
+    </section>
+    <div class="toolbar" role="group" aria-label="Sort books">
+      <button class="seg" type="button" data-sort="recent" aria-pressed="true">Most recent</button>
+      <button class="seg" type="button" data-sort="top" aria-pressed="false">Highest rated</button>
+      <button class="seg" type="button" data-sort="title" aria-pressed="false">A–Z</button>
+    </div>
+    <div class="shelf" id="shelf">
+      <div class="empty-state"><strong>Loading the shelf…</strong></div>
+    </div>
+  </section>
+  <input type="file" id="coverInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+</div>
+
+<footer class="site-foot" id="siteFoot"><span id="footWho"></span><button class="link-btn quiet" type="button" id="footAuth">Organizer sign in</button></footer>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-backdrop" data-close></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="Club menu">
+    <div class="sheet-head">
+      <div class="tabs" role="tablist" aria-label="Menu sections">
+        <button class="tab" role="tab" type="button" id="tabStats" data-tab="statsPanel" aria-controls="statsPanel" aria-selected="true">Club stats</button>
+        <button class="tab" role="tab" type="button" id="tabMembers" data-tab="membersPanel" aria-controls="membersPanel" aria-selected="false">Members <span class="cnt" id="memberCount"></span></button>
+      </div>
+      <button class="sheet-close" type="button" data-close aria-label="Close menu">×</button>
+    </div>
+    <div class="sheet-body">
+      <section class="drawer" id="statsPanel" role="tabpanel" aria-labelledby="tabStats">
+        <ol class="highlights in-stats" aria-label="Club highlights">
+          <li class="hl"><span class="hl-label"><b>1</b> Top rated</span><span class="hl-title" id="hlTop">–</span><span class="hl-score" id="hlTopScore"></span></li>
+          <li class="hl"><span class="hl-label"><b>2</b> Lowest rated</span><span class="hl-title" id="hlLow">–</span><span class="hl-score" id="hlLowScore"></span></li>
+          <li class="hl"><span class="hl-label"><b>3</b> Books read</span><span class="hl-title hl-big" id="hlCount">0</span><span class="hl-score" id="hlSince"></span></li>
+        </ol>
+        <div id="stats"></div>
+      </section>
+      <section class="drawer" id="membersPanel" role="tabpanel" aria-labelledby="tabMembers" hidden>
+        <div class="drawer-head"><h2 id="membersHead">Members</h2><button class="link-btn write-only" id="reorderBtn" type="button">Edit</button></div>
+        <div id="chips"></div>
+        <form class="inline-form write-only" id="memberForm">
+          <input type="text" id="memberInput" maxlength="40" placeholder="Add a member's name" aria-label="Member name">
+          <button class="btn" type="submit">Add member</button>
+        </form>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" hidden>
+  <div class="lb-backdrop" data-lb-close></div>
+  <figure class="lb-fig" role="dialog" aria-modal="true" aria-labelledby="lbTitle">
+    <button class="lb-close" type="button" data-lb-close aria-label="Close">×</button>
+    <div class="lb-art" id="lbArt"></div>
+    <figcaption><span class="lb-title" id="lbTitle"></span><span class="lb-author" id="lbAuthor"></span>
+      <span class="lb-actions" id="lbActions"><button class="btn" type="button" id="lbChange">Upload new cover</button><button class="btn ghost" type="button" id="lbRemove">Remove cover</button></span>
+    </figcaption>
+  </figure>
+</div>
+
+<script>
+(function () {
+  const STEPS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+  const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+  const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  // Cloth-binding colours for placeholder covers: [cloth, lettering]
+  const BINDINGS = [["#1E4D5C","#F2E3C2"],["#7A2E2A","#F3E6D0"],["#2F5233","#EDE3C4"],["#3B3A5E","#E9DFC8"],["#8A6A1F","#FBF3DD"],["#5A2F4E","#F1E2D6"],["#2B2B2B","#E6C46B"],["#4E6A7A","#FFFFFF"],["#A0522D","#FFF4E3"],["#36454F","#D9C9A3"]];
+  const state = {
+    settings: { name: "Our Book Club", members: [], periods: {} },
+    coverData: {}, books: [], sort: "recent", canWrite: true, db: null, assets: null, ready: false,
+    confirmMember: null, confirmBook: null, reordering: false, coverFor: null, uploading: null
+  };
+  try { const s = localStorage.getItem("bcs-sort"); if (s) state.sort = s; } catch (e) {}
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  const now = new Date();
+  $("bMonth").value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+
+  function notice(msg, isErr) {
+    const n = $("notice");
+    if (!msg) { n.hidden = true; return; }
+    n.textContent = msg; n.className = "notice" + (isErr ? " err" : ""); n.hidden = false;
+  }
+  const canEditShelf = () => state.canWrite && !!state.db;
+
+  function avgFor(book) {
+    const r = book.ratings || {};
+    const vals = state.settings.members.map(m => r[m]).filter(v => typeof v === "number");
+    if (!vals.length) return { avg: null, n: 0 };
+    return { avg: vals.reduce((a, b) => a + b, 0) / vals.length, n: vals.length };
+  }
+  const fmt = (v) => (Math.round(v * 100) / 100).toFixed(v * 10 % 1 === 0 ? 1 : 2);
+  function starsHTML(v, size) {
+    const pct = v == null ? 0 : (v / 5) * 100;
+    return `<span class="stars" style="${size ? "font-size:" + size + "px" : ""}" aria-hidden="true">★★★★★<span class="fill" style="width:${pct}%">★★★★★</span></span>`;
+  }
+  function stamp(readOn) {
+    if (!readOn || !/^\d{4}-\d{2}$/.test(readOn)) return "";
+    const [y, m] = readOn.split("-");
+    return `<span class="stamp">READ ${MONTHS[+m - 1]} ${y}</span>`;
+  }
+  function hash(s) { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.codePointAt(0)) >>> 0; return h; }
+  function coverHTML(book, small) {
+    const cls = "cover" + (small ? " sm" : "");
+    const src = book.coverId && state.coverData[book.coverId];
+    if (src && /^data:image\/(jpeg|png|webp|gif);base64,/.test(src)) {
+      return `<img class="${cls}" src="${src}" alt="Cover of ${esc(book.title)}" loading="lazy">`;
+    }
+    const [c1, c2] = BINDINGS[hash(book.title) % BINDINGS.length];
+    const last = (book.author || "").split(/[\/,]/)[0].trim().split(" ").pop();
+    return `<div class="${cls} gen" style="--c1:${c1};--c2:${c2}" aria-hidden="true"><span class="gt">${esc(book.title)}</span>${last ? `<span class="ga">${esc(last)}</span>` : ""}</div>`;
+  }
+
+  const byRecent = (a, b) => (a.readOn && b.readOn && a.readOn !== b.readOn) ? b.readOn.localeCompare(a.readOn) : (b.createdAt || 0) - (a.createdAt || 0);
+  let chronoIdx = new Map(), chrono = [];
+  function chronology() { return state.books.slice().sort((a, b) => byRecent(b, a)); }
+  // A member's membership is a list of stints: {from: bookId|"" (from the start), to: ""|"*"|bookId}.
+  // to "" = still active; "*" = inactive, date unknown; bookId = inactive from that book on (exclusive).
+  function periodsOf(m) {
+    const p = state.settings.periods[m];
+    return Array.isArray(p) && p.length ? p : [{ from: "", to: "" }];
+  }
+  const idxOf = (id) => chronoIdx.has(id) ? chronoIdx.get(id) : null;
+  function inClubFor(m, book) {
+    const i = idxOf(book.id);
+    return periodsOf(m).some(p => {
+      if (p.to === "*") return false;
+      const f = p.from ? idxOf(p.from) : 0, t = p.to ? idxOf(p.to) : null;
+      return (f == null || i >= f) && (t == null || i < t);
+    });
+  }
+  function migratePeriods(d) {
+    if (d.periods && typeof d.periods === "object") return d.periods;
+    const out = {}, former = Array.isArray(d.former) ? d.former : [], joined = (d.joined && typeof d.joined === "object") ? d.joined : {};
+    for (const m of (d.members || [])) if (joined[m] || former.includes(m)) out[m] = [{ from: joined[m] || "", to: former.includes(m) ? "*" : "" }];
+    return out;
+  }
+  // Goodreads: link to the book's page, or a Goodreads search when no page is stored
+  function grHTML(book) {
+    const g = book.goodreads && typeof book.goodreads === "object" ? book.goodreads : null;
+    const safe = g && /^https:\/\/(www\.)?goodreads\.com\//.test(g.url || "") ? g.url : null;
+    const url = safe || `https://www.goodreads.com/search?q=${encodeURIComponent([book.title, (book.author || "").split("/")[0]].join(" ").trim())}`;
+    return `<div class="gr"><a class="gr-link" href="${esc(url)}" target="_blank" rel="noopener">Goodreads<span aria-hidden="true"> ↗</span></a></div>`;
+  }
+
+  function sortedBooks() {
+    const list = state.books.slice();
+    if (state.sort === "title") list.sort((a, b) => String(a.title).localeCompare(String(b.title)));
+    else if (state.sort === "top") list.sort((a, b) => (avgFor(b).avg ?? -1) - (avgFor(a).avg ?? -1));
+    else list.sort(byRecent);
+    return list;
+  }
+
+  function renderHighlights() {
+    const rated = state.books.map(b => ({ b, ...avgFor(b) })).filter(x => x.avg != null);
+    const top = rated.slice().sort((a, b) => b.avg - a.avg)[0];
+    const low = rated.slice().sort((a, b) => a.avg - b.avg)[0];
+    const fill = (key, x) => {
+      $("hl" + key).textContent = x ? x.b.title : "Not enough ratings";
+      $("hl" + key + "Score").innerHTML = x ? `<b>${fmt(x.avg)}</b>${starsHTML(x.avg, 11)}` : "";
+    };
+    fill("Top", top); fill("Low", low);
+    $("hlCount").textContent = state.books.length;
+    const dates = state.books.map(b => b.readOn).filter(d => /^\d{4}-\d{2}$/.test(d || "")).sort();
+    $("hlSince").textContent = dates.length ? `since ${MONTHS[+dates[0].slice(5) - 1].charAt(0) + MONTHS[+dates[0].slice(5) - 1].slice(1).toLowerCase()} ${dates[0].slice(0, 4)}` : "";
+  }
+
+  // ---------- Club stats ----------
+  const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+  const sd = (a) => { const m = mean(a); return Math.sqrt(mean(a.map(v => (v - m) ** 2))); };
+  const f1 = (v) => (Math.round(v * 10) / 10).toFixed(1);
+  const signed = (v) => (v >= 0 ? "+" : "−") + f1(Math.abs(v));
+  const first = (m) => String(m).split(" ")[0];
+
+  function computeStats() {
+    const members = state.settings.members;
+    const books = state.books.map(b => {
+      const r = b.ratings || {};
+      const vals = members.filter(m => typeof r[m] === "number").map(m => ({ m, v: r[m] }));
+      return { b, vals, avg: vals.length ? mean(vals.map(x => x.v)) : null, sd: vals.length >= 3 ? sd(vals.map(x => x.v)) : null };
+    });
+    const all = books.flatMap(x => x.vals.map(y => ({ ...y, book: x })));
+    const per = members.map(m => {
+      const mine = all.filter(x => x.m === m);
+      const devs = mine.filter(x => x.book.vals.length >= 3).map(x => x.v - mean(x.book.vals.filter(o => o.m !== m).map(o => o.v)));
+      const sorted = mine.slice().sort((a, b) => b.v - a.v || (idxOf(b.book.b.id) ?? 0) - (idxOf(a.book.b.id) ?? 0));
+      return { m, n: mine.length, avg: mine.length ? mean(mine.map(x => x.v)) : null, dev: devs.length ? mean(devs) : null, fav: sorted[0], worst: sorted[sorted.length - 1], fives: mine.filter(x => x.v === 5).length };
+    });
+    const eligible = per.filter(p => p.n >= 5 && p.dev != null);
+    const critic = eligible.slice().sort((a, b) => a.dev - b.dev)[0];
+    const fan = eligible.slice().sort((a, b) => b.dev - a.dev)[0];
+    const loyal = per.slice().sort((a, b) => b.n - a.n)[0];
+    let take = null;
+    for (const x of all) {
+      const others = x.book.vals.filter(o => o.m !== x.m).map(o => o.v);
+      if (others.length < 3) continue;
+      const d = x.v - mean(others);
+      if (!take || Math.abs(d) > Math.abs(take.d)) take = { ...x, d, others: mean(others) };
+    }
+    const pairs = [];
+    for (let i = 0; i < members.length; i++) for (let j = i + 1; j < members.length; j++) {
+      const a = members[i], c = members[j];
+      const shared = books.filter(x => typeof (x.b.ratings || {})[a] === "number" && typeof (x.b.ratings || {})[c] === "number");
+      if (shared.length < 5) continue;
+      pairs.push({ a, c, n: shared.length, diff: mean(shared.map(x => Math.abs(x.b.ratings[a] - x.b.ratings[c]))) });
+    }
+    const twins = pairs.slice().sort((x, y) => x.diff - y.diff || y.n - x.n)[0];
+    const opposites = pairs.slice().sort((x, y) => y.diff - x.diff || y.n - x.n)[0];
+    const spread = books.filter(x => x.sd != null && x.vals.length >= 4);
+    const divisive = spread.slice().sort((a, b) => b.sd - a.sd)[0];
+    const united = spread.slice().sort((a, b) => a.sd - b.sd)[0];
+    const hist = STEPS.map(st => all.filter(x => x.v === st).length);
+    const years = {};
+    for (const x of books) { if (x.avg == null || !/^\d{4}/.test(x.b.readOn || "")) continue; const y = x.b.readOn.slice(0, 4); (years[y] = years[y] || []).push(x.avg); }
+    return { books, all, per, critic, fan, loyal, take, twins, opposites, divisive, united, hist, years };
+  }
+
+  function renderStats() {
+    const el = $("stats");
+    if ($("statsPanel").hidden || $("sheet").hidden) return;
+    const S = computeStats();
+    if (!S.all.length) { el.innerHTML = `<p class="muted">Stats appear once the club has rated a few books.</p>`; return; }
+    const tile = (k, v, sub, text) => `<div class="st-tile"><span class="st-k">${k}</span><span class="st-v${text ? " t" : ""}">${v}</span>${sub ? `<span class="st-s">${sub}</span>` : ""}</div>`;
+    const award = (k, who, why) => who ? `<div class="award"><span class="st-k">${k}</span><span class="who">${who}</span><span class="why">${why}</span></div>` : "";
+    const maxH = Math.max(...S.hist, 1), topBin = S.hist.indexOf(Math.max(...S.hist));
+    const yrs = Object.keys(S.years).sort();
+    const rows = S.per.filter(p => p.n).map(p => `<tr class="${isInactive(p.m) ? "inactive" : ""}"><td>${esc(p.m)}</td><td class="num">${p.n}</td><td class="num">${f1(p.avg)}</td><td class="num">${p.dev == null ? "–" : signed(p.dev)}</td><td>${p.fav ? `${esc(p.fav.book.b.title)} <span class="muted">(${p.fav.v})</span>` : "–"}</td></tr>`).join("");
+    el.innerHTML = `<div class="stats">
+      <div class="st-tiles">
+        ${tile("Ratings logged", S.all.length, `across ${S.books.filter(x => x.vals.length).length} books`)}
+        ${tile("Average rating", f1(mean(S.all.map(x => x.v))), starsHTML(mean(S.all.map(x => x.v)), 12))}
+        ${S.divisive ? tile("Most divisive", esc(S.divisive.b.title), `Ratings from ${Math.min(...S.divisive.vals.map(x => x.v))} to ${Math.max(...S.divisive.vals.map(x => x.v))}`, true) : ""}
+        ${S.united ? tile("Most agreed on", esc(S.united.b.title), `Everyone within ${f1(Math.max(...S.united.vals.map(x => x.v)) - Math.min(...S.united.vals.map(x => x.v)))} stars`, true) : ""}
+      </div>
+
+      <div class="st-sec"><h3>Club awards</h3><div class="awards">
+        ${award("Toughest critic", S.critic && esc(S.critic.m), S.critic && `Rates ${f1(Math.abs(S.critic.dev))} below everyone else, on average`)}
+        ${award("Biggest fan", S.fan && esc(S.fan.m), S.fan && `Rates ${signed(S.fan.dev)} above everyone else, on average`)}
+        ${award("Most dedicated", S.loyal && esc(S.loyal.m), S.loyal && `Rated ${S.loyal.n} of ${S.books.length} books`)}
+        ${award("Hottest take", S.take && esc(S.take.m), S.take && `Gave ${esc(S.take.book.b.title)} a ${S.take.v} when the rest averaged ${f1(S.take.others)}`)}
+        ${award("Taste twins", S.twins && `${esc(first(S.twins.a))} & ${esc(first(S.twins.c))}`, S.twins && `${f1(S.twins.diff)} stars apart on average over ${S.twins.n} books`)}
+        ${award("Polar opposites", S.opposites && `${esc(first(S.opposites.a))} & ${esc(first(S.opposites.c))}`, S.opposites && `${f1(S.opposites.diff)} stars apart on average over ${S.opposites.n} books`)}
+      </div></div>
+
+      <div class="st-sec"><h3>How we rate</h3>
+        <div class="hist" role="img" aria-label="Number of ratings at each star value">${S.hist.map((n, i) => `<div class="col"><span class="n">${n || ""}</span><div class="bar${i === topBin ? " top" : ""}" style="height:${(n / maxH) * 100}%"></div></div>`).join("")}</div>
+        <div class="hist-x">${STEPS.map(st => `<span>${st % 1 ? "½" : st}</span>`).join("")}</div>
+        <p class="st-note">Our most common rating is ${STEPS[topBin]} stars.</p>
+      </div>
+
+      ${yrs.length > 1 ? `<div class="st-sec"><h3>Year by year</h3><div class="years">${yrs.map(y => { const v = mean(S.years[y]); return `<div class="yr"><span class="y">${y}</span><span class="track"><span class="fillbar" style="display:block;width:${(v / 5) * 100}%"></span></span><span class="v">${f1(v)}</span><span class="c">${S.years[y].length} book${S.years[y].length === 1 ? "" : "s"}</span></div>`; }).join("")}</div></div>` : ""}
+
+      <div class="st-sec"><h3>Member by member</h3>
+        <div class="tbl-wrap"><table class="mt"><thead><tr><th>Member</th><th>Rated</th><th>Avg</th><th>Vs club</th><th>Favorite</th></tr></thead><tbody>${rows}</tbody></table></div>
+        <p class="st-note">“Vs club” compares each rating with the rest of the club's ratings for the same book. Awards need at least 5 rated books.</p>
+      </div>
+    </div>`;
+  }
+
+  const isInactive = (m) => { const p = periodsOf(m); return p[p.length - 1].to !== ""; };
+  const activeMembers = () => state.settings.members.filter(m => !isInactive(m));
+  const shortDate = (b) => b.readOn ? `${MONTHS[+b.readOn.slice(5) - 1]} ’${b.readOn.slice(2, 4)}` : b.title;
+  function bookOptions(selected, firstLabel, firstValue, after) {
+    const startI = after ? (idxOf(after) ?? -1) + 1 : 0;
+    return `<option value="${firstValue}">${firstLabel}</option>` + chrono.slice(startI).map(b => `<option value="${esc(b.id)}"${b.id === selected ? " selected" : ""}>${esc(b.title)}${b.readOn ? ` (${MONTHS[+b.readOn.slice(5) - 1]} ${b.readOn.slice(0, 4)})` : ""}</option>`).join("");
+  }
+  function savePeriods(m, list) { saveSettings({ periods: { ...state.settings.periods, [m]: list } }); }
+  function lastRatedIdx(m) {
+    let best = -1;
+    for (const b of state.books) if (typeof (b.ratings || {})[m] === "number") best = Math.max(best, idxOf(b.id) ?? -1);
+    return best;
+  }
+
+  function renderMembers() {
+    const members = state.settings.members;
+    const active = activeMembers(), inactive = members.filter(isInactive);
+    $("memberCount").textContent = members.length ? String(active.length) : "";
+    $("membersHead").textContent = `Members · ${active.length} active${inactive.length ? `, ${inactive.length} inactive` : ""}`;
+    $("reorderBtn").textContent = state.reordering ? "Done" : "Edit";
+    $("reorderBtn").hidden = !canEditShelf() || !members.length;
+    $("memberForm").hidden = !canEditShelf() || state.reordering;
+    if (!members.length) { $("chips").innerHTML = `<p class="muted">No members yet. Add everyone in the club so each person gets a rating slot.</p>`; return; }
+    if (state.reordering) {
+      $("chips").innerHTML = `<ol class="reorder">` + members.map((m, i) => {
+        if (state.confirmMember === m) {
+          return `<li class="confirming"><span class="nm">Remove ${esc(m)} and hide their ratings?</span><span class="confirm-row"><button class="btn ghost danger" style="color:var(--danger)" data-act="member-yes" data-name="${esc(m)}" type="button">Remove</button><button class="btn ghost" data-act="member-no" type="button">Keep</button></span></li>`;
+        }
+        const off = isInactive(m), ps = periodsOf(m), n = esc(m);
+        const lines = ps.map((p, k) => {
+          const fromSel = `<label class="since">${k === 0 ? "Member since" : "Back from"} <select data-act="period" data-name="${n}" data-k="${k}" data-f="from">${bookOptions(p.from, k === 0 ? "From the start" : "Pick a book", "", k > 0 && ps[k - 1].to && ps[k - 1].to !== "*" ? null : null)}</select></label>`;
+          const toSel = p.to === "" ? "" : `<label class="since">Inactive from <select data-act="period" data-name="${n}" data-k="${k}" data-f="to">${bookOptions(p.to === "*" ? "" : p.to, "Unknown date", "*")}</select></label>`;
+          return fromSel + toSel;
+        }).join("");
+        const extra = ps.length > 1 ? `<button class="link-btn quiet since" style="grid-column:2/-1;justify-self:start" type="button" data-act="drop-stint" data-name="${n}">Undo last return</button>` : "";
+        return `<li class="${off ? "is-old" : ""}"><span class="pos">${i + 1}</span><span class="nm">${n}</span>
+          <button class="status" type="button" data-act="${off ? "add-back" : "make-inactive"}" data-name="${n}" aria-pressed="${off}" aria-label="${n}: ${off ? "inactive, tap to add back" : "active, tap to mark inactive"}">${off ? "Add back" : "Active"}</button>
+          <span class="moves"><button type="button" data-act="move" data-i="${i}" data-d="-1" aria-label="Move ${n} up"${i === 0 ? " disabled" : ""}>↑</button><button type="button" data-act="move" data-i="${i}" data-d="1" aria-label="Move ${n} down"${i === members.length - 1 ? " disabled" : ""}>↓</button><button class="rm" type="button" data-act="member-ask" data-name="${n}" aria-label="Remove ${n}">×</button></span>
+          ${lines}${extra}</li>`;
+      }).join("") + `</ol><p class="muted">Order sets how ratings are listed on every book. Rating slots only appear on books read while someone was an active member. Ratings they already gave always show.</p>`;
+      return;
+    }
+    const tagFor = (m) => {
+      const ps = periodsOf(m), last = ps[ps.length - 1];
+      if (last.to === "*") return "";
+      const toB = last.to && state.books.find(x => x.id === last.to);
+      if (toB) return `<span class="since-tag">inactive since ${esc(shortDate(toB))}</span>`;
+      const fromB = last.from && state.books.find(x => x.id === last.from);
+      return fromB ? `<span class="since-tag">${ps.length > 1 ? "back since" : "since"} ${esc(shortDate(fromB))}</span>` : "";
+    };
+    const chip = (m, cls) => `<span class="chip plain${cls}">${esc(m)}${tagFor(m)}</span>`;
+    $("chips").innerHTML = `<div class="members-box"><div class="chips">${active.map(m => chip(m, "")).join("") || `<p class="muted">No active members.</p>`}</div>` +
+      (inactive.length ? `<p class="sub-head">Inactive members</p><div class="chips">${inactive.map(m => chip(m, " old")).join("")}</div>` : "") + `</div>`;
+  }
+
+  function render() {
+    const { name, members } = state.settings;
+    $("clubName").textContent = name || "Our Book Club";
+    const org = canEditShelf() && V.isAdmin;
+    document.querySelectorAll(".write-only").forEach(el => { if (el.classList.contains("drawer")) { if (!org) el.hidden = true; } else el.hidden = !org; });
+
+    chrono = chronology();
+    chronoIdx = new Map(chrono.map((b, i) => [b.id, i]));
+    renderHighlights();
+    renderMembers();
+    renderStats();
+    renderVote();
+    const canAdd = canEditShelf() && V.isAdmin;
+    $("addBookBtn").hidden = !canAdd;
+    if (!canAdd) $("addPanel").hidden = true;
+    renderNext();
+
+    const sel = $("bPicked"), prev = sel.value;
+    sel.innerHTML = `<option value="">Nobody in particular</option>` + activeMembers().map(m => `<option>${esc(m)}</option>`).join("");
+    if (activeMembers().includes(prev)) sel.value = prev;
+
+    document.querySelectorAll(".seg[data-sort]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.sort === state.sort)));
+
+    const shelf = $("shelf");
+    if (!state.ready) return;
+    if (!state.books.length) {
+      if (V.isAdmin) { shelf.innerHTML = `<div class="empty-state"><strong>The shelf is empty</strong><span>Bring over everything from the Claude version: books, ratings, members and covers.</span><button class="btn" type="button" id="importBtn">Import the shelf</button></div>`; return; }
+      shelf.innerHTML = `<div class="empty-state"><strong>No books on the shelf yet</strong><span>${canEditShelf() ? (members.length ? "Use “Add a book” above to log your first read." : "Add your members first, then log your first book above.") : "Books will show up here once the club adds them."}</span></div>`;
+      return;
+    }
+    shelf.innerHTML = sortedBooks().map(book => {
+      const { avg, n } = avgFor(book);
+      const r = book.ratings || {};
+      const locked = !canEditShelf();
+      const shown = members.filter(m => typeof r[m] === "number" || inClubFor(m, book));
+      const cells = shown.map(m => {
+        const v = typeof r[m] === "number" ? r[m] : null;
+        const opts = `<option value="">Not rated</option>` + STEPS.map(s => `<option value="${s}"${v === s ? " selected" : ""}>${s} ★</option>`).join("");
+        return `<div class="rate${v == null ? " empty" : ""}${locked ? " locked" : ""}${isInactive(m) ? " old" : ""}">
+          <span class="who">${esc(m)}${isInactive(m) ? `<span class="tag">inactive</span>` : ""}</span>
+          <span class="line">${starsHTML(v)}<span class="val">${v == null ? (locked ? "–" : "Rate") : v.toFixed(1)}</span></span>
+          <select data-act="rate" data-id="${esc(book.id)}" data-name="${esc(m)}" aria-label="${esc(m)}'s rating for ${esc(book.title)}">${opts}</select>
+        </div>`;
+      }).join("");
+      let foot = "";
+      if (!locked && V.isAdmin) {
+        if (state.confirmBook === book.id) {
+          foot = `<span>Remove this book and its ratings?</span><button class="btn ghost danger" data-act="book-yes" data-id="${esc(book.id)}" type="button">Remove</button><button class="btn ghost" data-act="book-no" type="button">Keep</button>`;
+        } else {
+          foot = `<button class="link-btn quiet" data-act="book-ask" data-id="${esc(book.id)}" type="button">Remove book</button>`;
+        }
+      }
+      const rb = /^\d{4}-\d{2}$/.test(book.readOn || "") ? `<div class="read-cal" role="img" aria-label="Read in ${MONTH_NAMES[+book.readOn.slice(5) - 1]} ${book.readOn.slice(0, 4)}"><span class="rc-mo">${MONTHS[+book.readOn.slice(5) - 1]}</span><span class="rc-yr">${book.readOn.slice(0, 4)}</span></div>` : "";
+      return `<article class="card${rb ? " has-cal" : ""}">${rb}
+        <div class="card-top">
+          <button class="cover-btn" type="button" data-act="zoom" data-id="${esc(book.id)}" aria-label="Enlarge cover of ${esc(book.title)}">${coverHTML(book)}${state.uploading === book.id ? `<span class="cover-busy">Uploading…</span>` : ""}</button>
+          <div class="book-meta">
+            <h3 class="book-title">${esc(book.title)}</h3>
+            ${book.author ? `<span class="book-author">${esc(book.author)}</span>` : ""}
+            ${grHTML(book)}
+            <div class="stamp-row">${book.pickedBy ? `<span class="picked">Picked by ${esc(book.pickedBy)}</span>` : ""}</div>
+          </div>
+          <div class="avg">
+            <span class="num${avg == null ? " none" : ""}">${avg == null ? "–" : fmt(avg)}</span>
+            ${starsHTML(avg, 15)}
+            <span class="of">${shown.length ? `${n} of ${shown.length} rated` : "no members"}</span>
+          </div>
+        </div>
+        ${shown.length ? `<div class="ratings">${cells}</div>` : `<p class="muted">Add members to start rating.</p>`}
+        ${foot ? `<div class="card-foot">${foot}</div>` : ""}
+      </article>`;
+    }).join("");
+  }
+
+  async function guard(fn) {
+    if (!state.db) return false;
+    try { await fn(); notice(null); return true; }
+    catch (e) {
+      const code = e && e.code;
+      if (code === "invalid_argument") { state.canWrite = false; notice("You have view-only access, so changes can't be saved. Ask the page owner to make you a Contributor.", true); }
+      else if (code === "quota_exceeded" || code === "quota_or_state") notice("The shelf is out of storage. Remove a few books or covers to make room.", true);
+      else if (code === "too_large") notice("That photo is too large. Try a smaller image.", true);
+      else if (code === "unsupported_type") notice("That file type isn't supported. Use a JPEG, PNG or WebP photo.", true);
+      else if (code === "resource_exhausted" || code === "rate_limited") notice("Too many changes at once. Wait a moment and try again.", true);
+      else notice("That change didn't save. Check your connection and try again.", true);
+      render();
+      return false;
+    }
+  }
+
+  // Settings writes run one at a time; the screen updates right away.
+  let settingsChain = Promise.resolve();
+  function saveSettings(patch) {
+    state.settings = { ...state.settings, ...patch };
+    render();
+    const snapshot = { ...state.settings };
+    settingsChain = settingsChain.then(() => guard(() => state.db.doc("club/settings").set(snapshot)));
+    return settingsChain;
+  }
+
+  async function downscale(file) {
+    try {
+      const bmp = await createImageBitmap(file);
+      const scale = Math.min(1, 600 / Math.max(bmp.width, bmp.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+      c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+      const blob = await new Promise(res => c.toBlob(res, "image/jpeg", 0.85));
+      return blob || file;
+    } catch (e) { return file; }
+  }
+
+  // Events
+  $("memberForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const v = $("memberInput").value.trim();
+    if (!v) return;
+    if (state.settings.members.some(m => m.toLowerCase() === v.toLowerCase())) { notice(`${v} is already a member.`, true); return; }
+    $("memberInput").value = "";
+    saveSettings({ members: [...state.settings.members, v] });
+  });
+  $("reorderBtn").addEventListener("click", () => { state.reordering = !state.reordering; state.confirmMember = null; render(); });
+  $("renameBtn").addEventListener("click", () => { $("renameInput").value = state.settings.name; $("renameForm").hidden = false; $("titleRow").hidden = true; $("renameInput").focus(); });
+  $("renameCancel").addEventListener("click", () => { $("renameForm").hidden = true; $("titleRow").hidden = false; });
+  $("renameForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const v = $("renameInput").value.trim();
+    $("renameForm").hidden = true; $("titleRow").hidden = false;
+    if (v && v !== state.settings.name) saveSettings({ name: v });
+  });
+  $("bookForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const title = $("bTitle").value.trim();
+    if (!title) return;
+    const book = { title, author: $("bAuthor").value.trim(), readOn: $("bMonth").value || "", pickedBy: $("bPicked").value || "", ratings: {}, createdAt: Date.now() };
+    $("bTitle").value = ""; $("bAuthor").value = "";
+    closeAdd();
+    guard(() => state.db.collection("books").add(book));
+  });
+  $("coverInput").addEventListener("change", async () => {
+    const file = $("coverInput").files[0];
+    const id = state.coverFor;
+    $("coverInput").value = "";
+    if (!file || !id || !state.assets) return;
+    state.uploading = id; render();
+    await guard(async () => {
+      const blob = await downscale(file);
+      const res = await state.assets.upload(blob, blob.type ? undefined : { type: "image/jpeg" });
+      await state.db.doc("books/" + id).update({ coverId: res.id });
+    });
+    state.uploading = null; render();
+  });
+  document.querySelector(".toolbar").addEventListener("click", e => {
+    const b = e.target.closest(".seg[data-sort]"); if (!b) return;
+    state.sort = b.dataset.sort;
+    try { localStorage.setItem("bcs-sort", state.sort); } catch (err) {}
+    render();
+  });
+  document.addEventListener("click", e => {
+    const t = e.target.closest("[data-act]"); if (!t || t.tagName === "SELECT") return;
+    const act = t.dataset.act;
+    if (act === "member-ask") { state.confirmMember = t.dataset.name; render(); }
+    else if (act === "member-no") { state.confirmMember = null; render(); }
+    else if (act === "member-yes") { const n = t.dataset.name; state.confirmMember = null; const periods = { ...state.settings.periods }; delete periods[n]; saveSettings({ members: state.settings.members.filter(m => m !== n), periods }); }
+    else if (act === "make-inactive") {
+      const n = t.dataset.name, ps = periodsOf(n).map(p => ({ ...p })), next = chrono[lastRatedIdx(n) + 1];
+      ps[ps.length - 1].to = (lastRatedIdx(n) >= 0 && next) ? next.id : "*";
+      savePeriods(n, ps);
+    }
+    else if (act === "add-back") {
+      const n = t.dataset.name, latest = chrono[chrono.length - 1];
+      savePeriods(n, [...periodsOf(n).map(p => ({ ...p })), { from: latest ? latest.id : "", to: "" }]);
+    }
+    else if (act === "drop-stint") { const n = t.dataset.name, ps = periodsOf(n).slice(0, -1); savePeriods(n, ps); }
+    else if (act === "move") {
+      const i = +t.dataset.i, j = i + +t.dataset.d, list = state.settings.members.slice();
+      if (j < 0 || j >= list.length) return;
+      [list[i], list[j]] = [list[j], list[i]];
+      saveSettings({ members: list });
+      requestAnimationFrame(() => { const b = document.querySelector(`[data-act="move"][data-i="${j}"][data-d="${t.dataset.d}"]`); if (b && !b.disabled) b.focus(); });
+    }
+    else if (act === "book-ask") { state.confirmBook = t.dataset.id; render(); }
+    else if (act === "book-no") { state.confirmBook = null; render(); }
+    else if (act === "book-yes") { const id = t.dataset.id; state.confirmBook = null; guard(() => state.db.doc("books/" + id).delete()); }
+    else if (act === "cover") { state.coverFor = t.dataset.id; $("coverInput").click(); }
+    else if (act === "zoom") { openLightbox(t.dataset.id); }
+    else if (act === "cover-clear") { const id = t.dataset.id; guard(() => state.db.doc("books/" + id).update({ coverId: null })); }
+  });
+  document.addEventListener("change", e => {
+    const ps = e.target.closest('select[data-act="period"]');
+    if (ps) {
+      const n = ps.dataset.name, list = periodsOf(n).map(p => ({ ...p }));
+      list[+ps.dataset.k][ps.dataset.f] = ps.value;
+      savePeriods(n, list); return;
+    }
+    const s = e.target.closest('select[data-act="rate"]'); if (!s) return;
+    const val = s.value === "" ? null : Number(s.value);
+    const id = s.dataset.id, name = s.dataset.name;
+    guard(() => state.db.doc("books/" + id).update({ ratings: { [name]: val } }));
+  });
+
+  // ---------- Next-book vote ----------
+  // rounds/{id}: {phase: "suggest"|"vote"|"closed", createdAt, picks, results, ballotCount, closedAt, shelfBookId}
+  // suggestions/{id}: {roundId, title, author, pages, description, createdAt}  (no names: anonymous)
+  // ballots/{random id}: {roundId, picks: [suggestionId, ...]}                  (no names: anonymous)
+  // data/users/<me>/vote-<roundId>: {suggestions: [ids], ballotId}          (private to each person)
+  const MAX_SUGGESTIONS = 2;
+  const V = { rounds: [], suggestions: [], ballots: [], uid: null, isAdmin: false, mine: {}, draft: null, draftRound: null, confirm: null, busy: false };
+  const currentRound = () => V.rounds.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0] || null;
+  const roundSugs = (r) => V.suggestions.filter(x => x.roundId === r.id).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  const roundBallots = (r) => V.ballots.filter(x => x.roundId === r.id);
+  const picksFor = (n) => n >= 6 ? 3 : n >= 4 ? 2 : 1;
+  const ORD = ["1st", "2nd", "3rd"];
+  const myRec = (r) => V.mine[r.id] || { suggestions: [], ballotId: null };
+  function privRef(rid) { return V.uid ? state.db.collection("data/users/" + V.uid).doc("vote-" + rid) : null; }
+  async function loadMine(rid) {
+    if (V.mine[rid]) return;
+    V.mine[rid] = { suggestions: [], ballotId: null };
+    try {
+      const ref = privRef(rid);
+      if (ref) { const s = await ref.get(); if (s.exists) V.mine[rid] = { suggestions: [], ballotId: null, ...s.data() }; }
+      else { const raw = localStorage.getItem("bcs-vote-" + rid); if (raw) V.mine[rid] = JSON.parse(raw); }
+    } catch (e) {}
+    renderVote();
+  }
+  async function saveMine(rid) {
+    const rec = V.mine[rid];
+    const ref = privRef(rid);
+    if (ref) await ref.set(rec);
+    else { try { localStorage.setItem("bcs-vote-" + rid, JSON.stringify(rec)); } catch (e) {} }
+  }
+  function tally(r) {
+    const sugs = roundSugs(r), k = r.picks || 1, rows = {};
+    for (const s of sugs) rows[s.id] = { id: s.id, title: s.title, author: s.author || "", pages: s.pages || "", points: 0, firsts: 0, voters: 0 };
+    const ballots = roundBallots(r);
+    for (const b of ballots) {
+      const seen = new Set();
+      (b.picks || []).slice(0, k).forEach((id, i) => {
+        if (!rows[id] || seen.has(id)) return; seen.add(id);
+        rows[id].points += k - i; rows[id].voters += 1; if (i === 0) rows[id].firsts += 1;
+      });
+    }
+    const list = Object.values(rows).sort((a, b) => b.points - a.points || b.firsts - a.firsts || b.voters - a.voters);
+    return { list, ballotCount: ballots.length };
+  }
+
+  function sugCard(s, r, opts) {
+    const mine = myRec(r).suggestions.includes(s.id);
+    const desc = s.description ? `<p class="sg-desc">${esc(s.description)}</p>` : "";
+    const meta = [s.author ? esc(s.author) : "", s.pages ? `${esc(s.pages)} pages` : ""].filter(Boolean).join(" · ");
+    return `<article class="sg${opts.picked != null ? " picked" : ""}">
+      <div class="sg-main"><h4 class="sg-title">${esc(s.title)}${mine ? `<span class="sg-mine">your suggestion</span>` : ""}</h4>${meta ? `<span class="sg-meta">${meta}</span>` : ""}${desc}</div>
+      ${opts.side || ""}
+    </article>`;
+  }
+
+  function renderVote() {
+    const head = $("voteHead"), list = $("voteList"), admin = $("voteAdmin"), form = $("suggestForm"), hist = $("voteHistory");
+    if (!head) return;
+    const r = currentRound();
+    const phase = r ? r.phase : "none";
+    const stale = phase === "closed" && Date.now() - (r.closedAt || 0) > 21 * 86400000;
+    const quiet = phase === "none" || stale;
+    $("votePanel").hidden = quiet && !V.isAdmin;
+    $("votePanel").classList.toggle("quiet", quiet);
+    // While suggestions or voting are open, the vote sits at the very top, above the next meeting.
+    const live = phase === "suggest" || phase === "vote";
+    const panel = $("votePanel"), anchor = live ? $("nextCard") : document.querySelector('section.panel[aria-labelledby="shelfHead"]');
+    if (panel.nextElementSibling !== anchor) anchor.parentNode.insertBefore(panel, anchor);
+    panel.classList.toggle("on-top", live);
+    const left = r && phase === "suggest" ? MAX_SUGGESTIONS - myRec(r).suggestions.length : 0;
+    form.hidden = !(phase === "suggest" && canEditShelf() && V.sgOpen && left > 0);
+    $("sgOpen").hidden = !(phase === "suggest" && canEditShelf() && !V.sgOpen && left > 0);
+    $("startForm").hidden = !(V.isAdmin && V.startMode);
+    $("stSubmit").textContent = V.startMode === "edit" ? "Save details" : "Open suggestions";
+    const facts = r ? [["When", r.when], ["Where", r.where]].filter(x => x[1]) : [];
+    const themeHTML = r && phase !== "none" && (r.theme || facts.length) ? `<div class="theme">${r.theme ? `<span class="st-k">Theme</span><strong>${esc(r.theme)}</strong>` : ""}${facts.length ? `<div class="theme-facts">${facts.map(([k, v]) => `<span><span class="st-k">${k}</span> ${esc(v)}</span>`).join("")}</div>` : ""}</div>` : "";
+    const canAct = canEditShelf();
+    const cancelBtn = `<button class="link-btn quiet" type="button" data-vact="cancel-round">Cancel round</button>`;
+    const confirmBox = (key, text, label) => V.confirm === key
+      ? `<div class="vconfirm"><span>${text}</span><button class="btn" type="button" data-vact="${key}-yes">${label}</button><button class="btn ghost" type="button" data-vact="cancel">Cancel</button></div>` : "";
+
+    if (quiet) {
+      head.innerHTML = `<p class="muted">Submissions are closed. When it's time to pick the next book, start the submission process and add a theme if you like. Members can't see this section until you do.</p>`;
+      list.innerHTML = ""; admin.innerHTML = `<button class="btn ghost" type="button" data-vact="start">Start the submission process</button>`;
+      if (V.startMode) admin.innerHTML = "";
+    } else if (phase === "suggest") {
+      const sugs = roundSugs(r);
+      head.innerHTML = `<h2>Next book: suggestions</h2>${themeHTML}<p class="muted">Suggest up to ${MAX_SUGGESTIONS} books. Suggestions don't show who sent them. ${canAct ? (left > 0 ? `You have ${left} left.` : "You've used both of yours.") : ""}</p>`;
+      $("sgSubmit").disabled = left <= 0;
+      list.innerHTML = sugs.length ? `<div class="sg-list">${sugs.map(s => {
+        const mine = myRec(r).suggestions.includes(s.id);
+        const side = (mine || V.isAdmin) && canAct ? `<div class="sg-side">${V.confirm === "del:" + s.id ? `<button class="link-btn danger-link" type="button" data-vact="del-yes" data-id="${esc(s.id)}">Confirm remove</button><button class="link-btn quiet" type="button" data-vact="cancel">Keep</button>` : `<button class="link-btn quiet" type="button" data-vact="del" data-id="${esc(s.id)}">Remove</button>`}</div>` : "";
+        return sugCard(s, r, { side });
+      }).join("")}</div>` : `<div class="empty-state"><strong>No suggestions yet</strong><span>Be the first to put a book forward.</span></div>`;
+      admin.innerHTML = V.isAdmin && !V.startMode ? (confirmBox("cancel-round", "Cancel this round? All suggestions in it will be deleted and the section will be hidden from members again.", "Cancel round") || confirmBox("tovote", `Close suggestions and open voting on ${sugs.length} books? Everyone gets ${picksFor(sugs.length)} ranked pick${picksFor(sugs.length) > 1 ? "s" : ""}.`, "Open voting")
+        || `<button class="btn" type="button" data-vact="tovote"${sugs.length < 2 ? " disabled" : ""}>Close suggestions & start voting</button>${sugs.length < 2 ? `<span class="muted">Needs at least 2 suggestions.</span>` : ""}<button class="link-btn" type="button" data-vact="edit-theme">${r.theme || r.when || r.where ? "Edit round details" : "Add theme, time & place"}</button>${cancelBtn}`) : "";
+    } else if (phase === "vote") {
+      const sugs = roundSugs(r), k = r.picks || 1, rec = myRec(r);
+      const saved = rec.ballotId ? (V.ballots.find(b => b.id === rec.ballotId) || null) : null;
+      if (V.draftRound !== r.id || V.draft == null) { V.draft = saved ? (saved.picks || []).slice(0, k) : []; V.draftRound = r.id; V.touched = false; }
+      if (saved && !V.touched && !V.draft.length) V.draft = (saved.picks || []).slice(0, k);
+      const d = V.draft.filter(id => sugs.some(s => s.id === id));
+      const n = roundBallots(r).length;
+      const pts = Array.from({ length: k }, (_, i) => `${ORD[i]} = ${k - i} pt${k - i > 1 ? "s" : ""}`).join(", ");
+      head.innerHTML = `<h2>Next book: voting</h2>${themeHTML}<p class="muted">${k > 1 ? `Pick your top ${k} in order (${pts}).` : "Pick one book."} Ballots don't show who cast them. ${n} ballot${n === 1 ? "" : "s"} in so far.</p>`;
+      const changed = JSON.stringify(d) !== JSON.stringify(saved ? (saved.picks || []).slice(0, k) : null);
+      const tray = canAct ? `<div class="ballot">
+          <div class="ballot-slots">${Array.from({ length: k }, (_, i) => { const s = sugs.find(x => x.id === d[i]); return `<div class="slot${s ? " full" : ""}"><span class="slot-n">${ORD[i]}</span><span class="slot-t">${s ? esc(s.title) : "Tap a book below"}</span></div>`; }).join("")}</div>
+          <div class="ballot-act">${saved && !changed ? `<span class="ok">✓ Your ballot is in. You can change it until voting closes.</span>` : `<button class="btn" type="button" data-vact="cast"${d.length ? "" : " disabled"}${V.busy ? " disabled" : ""}>${saved ? "Update my ballot" : "Cast my ballot"}</button>${d.length && d.length < k ? `<span class="muted">You can also leave picks empty.</span>` : ""}`}</div>
+        </div>` : "";
+      list.innerHTML = tray + `<div class="sg-list">${sugs.map(s => {
+        const at = d.indexOf(s.id);
+        const side = canAct ? `<div class="sg-side">${at >= 0 ? `<span class="rank">${ORD[at]}</span><button class="link-btn quiet" type="button" data-vact="unpick" data-id="${esc(s.id)}">Remove</button>` : `<button class="pick" type="button" data-vact="pick" data-id="${esc(s.id)}"${d.length >= k ? " disabled" : ""}>Pick${d.length < k ? ` as ${ORD[d.length]}` : ""}</button>`}</div>` : "";
+        return sugCard(s, r, { side, picked: at >= 0 ? at : null });
+      }).join("")}</div>`;
+      admin.innerHTML = V.isAdmin ? (confirmBox("cancel-round", "Cancel this round? All suggestions and ballots in it will be deleted and the section will be hidden from members again.", "Cancel round") || confirmBox("close", `Close voting with ${n} ballot${n === 1 ? "" : "s"} and show the results?`, "Show results") || `<button class="btn" type="button" data-vact="close"${n ? "" : " disabled"}>Close voting & show results</button>${cancelBtn}`) : "";
+    } else {
+      const res = r.results || [], max = Math.max(1, ...res.map(x => x.points));
+      const tie = res.length > 1 && res[0].points === res[1].points && res[0].firsts === res[1].firsts;
+      const onShelf = r.shelfBookId && state.books.some(b => b.id === r.shelfBookId);
+      const winner = !tie && res[0];
+      head.innerHTML = `<h2>${winner ? `The club picked <em>${esc(winner.title)}</em>` : "Voting closed: it's a tie"}</h2><p class="muted">${r.ballotCount || 0} ballot${r.ballotCount === 1 ? "" : "s"} · ${r.picks > 1 ? `ranked, ${Array.from({ length: r.picks }, (_, i) => r.picks - i).join("/")} points` : "one pick each"}${winner ? (onShelf ? " · Added to the shelf and set as the next meeting's book." : "") : V.isAdmin ? " · Choose which tied book to read." : " · The organiser will choose between the tied books."}</p>`;
+      list.innerHTML = `<details class="past"${tie ? " open" : ""}><summary>Full results</summary><ol class="results" style="margin-top:8px">${res.map((x, i) => `<li class="res${i === 0 && !tie ? " win" : ""}">
+          <span class="res-pos">${i + 1}</span>
+          <div class="res-main"><span class="res-title">${esc(x.title)}</span>${x.author ? `<span class="sg-meta">${esc(x.author)}${x.pages ? ` · ${esc(x.pages)} pages` : ""}</span>` : ""}
+            <span class="res-bar"><span style="width:${(x.points / max) * 100}%"></span></span>
+            <span class="res-sub">${x.points} pt${x.points === 1 ? "" : "s"} · ${x.firsts} first-choice · on ${x.voters} ballot${x.voters === 1 ? "" : "s"}</span></div>
+          ${V.isAdmin && canAct && !onShelf && (i === 0 || tie && x.points === res[0].points && x.firsts === res[0].firsts) ? `<button class="btn ghost" type="button" data-vact="shelve" data-i="${i}">Add to shelf</button>` : ""}
+        </li>`).join("")}</ol></details>`;
+      admin.innerHTML = V.isAdmin ? (V.startMode ? "" : `<button class="btn ghost" type="button" data-vact="start">Start the submission process</button>`) : "";
+    }
+    const past = V.rounds.filter(x => x.phase === "closed" && (!r || x.id !== r.id)).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0));
+    hist.innerHTML = past.length ? `<details class="past"><summary>Past rounds (${past.length})</summary><ul>${past.map(x => { const w = (x.results || [])[0]; const d = new Date(x.closedAt || x.createdAt || 0); return `<li><span class="muted">${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getFullYear()}</span> ${w ? `<b>${esc(w.title)}</b> won with ${w.points} pts` : "No votes"}</li>`; }).join("")}</ul></details>` : "";
+  }
+
+  // Put the winning book on the shelf and make it the next meeting's book.
+  async function shelveWinner(r, x) {
+    const n = state.next || {};
+    const month = /^\d{4}-\d{2}/.test(n.date || "") ? n.date.slice(0, 7) : $("bMonth").value || "";
+    const ref = state.db.collection("books").doc();
+    const ok = await guard(() => ref.set({ title: x.title, author: x.author || "", readOn: month, pickedBy: "", ratings: {}, createdAt: Date.now() }));
+    if (!ok) return;
+    await guard(() => state.db.doc("rounds/" + r.id).update({ shelfBookId: ref.id }));
+    const next = { ...(state.next || {}), bookId: ref.id, updatedAt: Date.now() };
+    state.next = next;
+    await guard(() => state.db.doc("club/next").set(next));
+  }
+
+  async function voteAction(act, t) {
+    const r = currentRound();
+    if (act === "cancel") { V.confirm = null; return renderVote(); }
+    if (act === "start") { if (r && r.phase !== "closed") return; V.startMode = "new"; ["stTheme", "stWhen", "stWhere"].forEach(id => $(id).value = ""); renderVote(); $("stTheme").focus(); return; }
+    if (act === "cancel-round") { V.confirm = "cancel-round"; return renderVote(); }
+    if (act === "cancel-round-yes") {
+      V.confirm = null; V.sgOpen = false;
+      if (!r || r.phase === "closed") return renderVote();
+      for (const x of roundSugs(r)) await guard(() => state.db.doc("suggestions/" + x.id).delete());
+      for (const x of roundBallots(r)) await guard(() => state.db.doc("ballots/" + x.id).delete());
+      await guard(() => state.db.doc("rounds/" + r.id).delete());
+      return renderVote();
+    }
+    if (act === "edit-theme") { V.startMode = "edit"; $("stTheme").value = (r && r.theme) || ""; $("stWhen").value = (r && r.when) || ""; $("stWhere").value = (r && r.where) || ""; renderVote(); $("stTheme").focus(); return; }
+    if (!r) return;
+    if (act === "del") { V.confirm = "del:" + t.dataset.id; return renderVote(); }
+    if (act === "del-yes") {
+      const id = t.dataset.id; V.confirm = null;
+      const ok = await guard(() => state.db.doc("suggestions/" + id).delete());
+      const rec = myRec(r);
+      if (ok && rec.suggestions.includes(id)) { V.mine[r.id] = { ...rec, suggestions: rec.suggestions.filter(x => x !== id) }; await guard(() => saveMine(r.id)); }
+      return renderVote();
+    }
+    if (act === "tovote") { V.confirm = "tovote"; return renderVote(); }
+    if (act === "tovote-yes") { V.confirm = null; const n = roundSugs(r).length; return guard(() => state.db.doc("rounds/" + r.id).update({ phase: "vote", picks: picksFor(n), options: n })); }
+    if (act === "pick") { V.touched = true; const id = t.dataset.id; if (!V.draft.includes(id) && V.draft.length < (r.picks || 1)) V.draft = [...V.draft, id]; return renderVote(); }
+    if (act === "unpick") { V.touched = true; V.draft = V.draft.filter(x => x !== t.dataset.id); return renderVote(); }
+    if (act === "cast") {
+      if (V.busy || r.phase !== "vote") return;
+      V.busy = true; renderVote();
+      const rec = myRec(r);
+      const ref = rec.ballotId ? state.db.doc("ballots/" + rec.ballotId) : state.db.collection("ballots").doc();
+      const ok = await guard(() => ref.set({ roundId: r.id, picks: V.draft.slice(0, r.picks || 1) }));
+      if (ok && !rec.ballotId) { V.mine[r.id] = { ...rec, ballotId: ref.id }; await guard(() => saveMine(r.id)); }
+      V.busy = false; return renderVote();
+    }
+    if (act === "close") { V.confirm = "close"; return renderVote(); }
+    if (act === "close-yes") {
+      V.confirm = null;
+      const t2 = tally(r), res = t2.list;
+      const ok = await guard(() => state.db.doc("rounds/" + r.id).update({ phase: "closed", results: res, ballotCount: t2.ballotCount, closedAt: Date.now() }));
+      const tie = res.length > 1 && res[0].points === res[1].points && res[0].firsts === res[1].firsts;
+      if (ok && res.length && !tie) await shelveWinner(r, res[0]);
+      return;
+    }
+    if (act === "shelve") { const x = (r.results || [])[+t.dataset.i]; if (x) await shelveWinner(r, x); }
+  }
+
+  $("startForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const info = { theme: $("stTheme").value.trim(), when: $("stWhen").value.trim(), where: $("stWhere").value.trim() }, r = currentRound(), mode = V.startMode;
+    V.startMode = null; renderVote();
+    if (mode === "edit" && r) await guard(() => state.db.doc("rounds/" + r.id).update(info));
+    else await guard(() => state.db.collection("rounds").add({ phase: "suggest", ...info, createdAt: Date.now() }));
+  });
+  $("stCancel").addEventListener("click", () => { V.startMode = null; renderVote(); });
+  $("sgOpen").addEventListener("click", () => { V.sgOpen = true; renderVote(); $("sgTitle").focus(); });
+  $("sgCancel").addEventListener("click", () => { V.sgOpen = false; renderVote(); });
+  $("suggestForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const r = currentRound(); if (!r || r.phase !== "suggest") return;
+    const rec = myRec(r);
+    if (rec.suggestions.length >= MAX_SUGGESTIONS) { notice(`You've already suggested ${MAX_SUGGESTIONS} books this round.`, true); return; }
+    const title = $("sgTitle").value.trim(), author = $("sgAuthor").value.trim();
+    if (!title || !author) return;
+    const doc = { roundId: r.id, title, author, pages: $("sgPages").value.trim(), description: $("sgDesc").value.trim().slice(0, 1200), createdAt: Date.now() };
+    const ref = state.db.collection("suggestions").doc();
+    $("sgSubmit").disabled = true;
+    const ok = await guard(() => ref.set(doc));
+    if (ok) {
+      V.mine[r.id] = { ...rec, suggestions: [...rec.suggestions, ref.id] };
+      await guard(() => saveMine(r.id));
+      ["sgTitle", "sgAuthor", "sgPages", "sgDesc"].forEach(id => $(id).value = "");
+      V.sgOpen = false; notice("Suggestion submitted anonymously.");
+    }
+    renderVote();
+  });
+  document.addEventListener("click", e => {
+    const t = e.target.closest("[data-vact]"); if (!t) return;
+    voteAction(t.dataset.vact, t);
+  });
+
+  // ---------- Next meeting ----------
+  state.next = null; state.editingNext = false;
+  const WEEKDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  function renderNext() {
+    const card = $("nextCard"), n = state.next || {};
+    card.hidden = state.editingNext;
+    const book = n.bookId && state.books.find(b => b.id === n.bookId);
+    const canPlan = canEditShelf() && V.isAdmin;
+    const editBtn = canPlan ? `<button class="link-btn" type="button" id="nEdit">Edit</button>` : "";
+    card.classList.remove("featured");
+    if (!n.date && !book && !n.host && !n.where) {
+      card.innerHTML = `<div class="next-empty"><span class="eyebrow">Next meeting</span><strong class="next-when">Not scheduled yet</strong><span class="muted">${canPlan ? "Add the date, book and host so everyone knows the plan." : "Check back once the date is set."}</span>${editBtn ? `<span>${editBtn.replace(">Edit<", ">Set the next meeting<")}</span>` : ""}</div>`;
+      return;
+    }
+    let cal = `<div class="cal"><span class="mo">TBD</span><span class="dy">?</span><span class="wd">date</span></div>`, when = "Date to be decided", rel = "", days = null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(n.date || "")) {
+      const [y, m, d] = n.date.split("-").map(Number), dt = new Date(y, m - 1, d);
+      cal = `<div class="cal"><span class="mo">${MONTHS[m - 1]}</span><span class="dy">${d}</span><span class="wd">${WEEKDAYS[dt.getDay()]}</span></div>`;
+      let time = "";
+      if (/^\d{2}:\d{2}$/.test(n.time || "")) { const [h, mi] = n.time.split(":").map(Number); time = ` · ${((h + 11) % 12) + 1}${mi ? ":" + String(mi).padStart(2, "0") : ""} ${h < 12 ? "AM" : "PM"}`; }
+      when = `${WEEKDAYS[dt.getDay()]}day, ${MONTH_NAMES[m - 1]} ${d}`.replace("Satday", "Saturday").replace("Wedday", "Wednesday").replace("Thuday", "Thursday").replace("Tueday", "Tuesday") + time;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      days = Math.round((dt - today) / 86400000);
+      rel = days > 1 ? `in ${days} days` : days === 1 ? "tomorrow" : days === 0 ? "today" : "this meeting has passed";
+    }
+    const where = n.where ? `${esc(n.where)} <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(n.where)}" target="_blank" rel="noopener">Map</a>` : "–";
+    const hostLine = n.host || n.where ? `<div class="next-line">${n.host ? `Hosted by <b>${esc(n.host)}</b>` : ""}${n.host && n.where ? `<span class="dot">·</span>` : ""}${n.where ? `<span>${where}</span>` : ""}</div>` : "";
+    if (book && days != null && days >= 0) {
+      card.classList.add("featured");
+      const big = days === 0 ? "Today" : days === 1 ? "Tomorrow" : String(days);
+      card.innerHTML = `<button class="cover-btn feat-cover" type="button" data-act="zoom" data-id="${esc(book.id)}" aria-label="Enlarge cover of ${esc(book.title)}">${coverHTML(book)}</button>
+        <div class="feat-body">
+          <div class="next-top"><span class="eyebrow feat-eyebrow">Next meeting · we're reading</span>${editBtn}</div>
+          <h2 class="feat-title">${esc(book.title)}</h2>
+          ${book.author ? `<div class="feat-author">${esc(book.author)}</div>` : ""}
+          <div class="feat-when">${cal}<div><div class="next-when">${esc(when)}</div>${hostLine}</div></div>
+          <div class="feat-count"><span class="n">${big}</span>${days > 1 ? `<span>days to go</span>` : `<span>${days === 0 ? "See you there" : "Almost time"}</span>`}</div>
+        </div>`;
+      return;
+    }
+    card.innerHTML = `${cal}<div class="next-body">
+        <div class="next-top"><div><span class="eyebrow">Next meeting</span><div class="next-when">${esc(when)}</div>${rel ? `<span class="next-rel">${rel}</span>` : ""}</div>${editBtn}</div>
+        <div class="next-book">${book ? coverHTML(book, true) : `<div class="cover sm gen" style="--c1:var(--line);--c2:var(--muted)"><span class="gt">?</span></div>`}<div><div class="t">${book ? esc(book.title) : "Book to be decided"}</div>${book && book.author ? `<div class="a">${esc(book.author)}</div>` : ""}</div></div>
+        ${hostLine}
+      </div>`;
+  }
+  function openNextForm() {
+    if (!(canEditShelf() && V.isAdmin)) return;
+    const n = state.next || {};
+    $("nDate").value = n.date || ""; $("nTime").value = n.time || "";
+    const list = state.books.slice().sort(byRecent);
+    $("nBook").innerHTML = `<option value="">Not decided yet</option>` + list.map(b => `<option value="${esc(b.id)}">${esc(b.title)}</option>`).join("");
+    $("nBook").value = n.bookId || "";
+    $("nHostList").innerHTML = activeMembers().map(m => `<option value="${esc(m)}"></option>`).join("");
+    $("nHost").value = n.host || ""; $("nWhere").value = n.where || "";
+    state.editingNext = true; $("nextForm").hidden = false; renderNext(); $("nDate").focus();
+  }
+  function closeNextForm() { state.editingNext = false; $("nextForm").hidden = true; renderNext(); }
+  document.addEventListener("click", e => { if (e.target.id === "nEdit") openNextForm(); });
+  $("nCancel").addEventListener("click", closeNextForm);
+  $("nextForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const data = { date: $("nDate").value, time: $("nTime").value, bookId: $("nBook").value, host: $("nHost").value.trim(), where: $("nWhere").value.trim(), updatedAt: Date.now() };
+    state.next = data; closeNextForm();
+    guard(() => state.db.doc("club/next").set(data));
+  });
+
+  // Menu sheet with Club stats / Members tabs
+  let lastFocus = null;
+  function showTab(id) {
+    document.querySelectorAll("[data-tab]").forEach(t => { const on = t.dataset.tab === id; t.setAttribute("aria-selected", String(on)); $(t.dataset.tab).hidden = !on; });
+    try { localStorage.setItem("bcs-tab", id); } catch (e) {}
+    renderStats();
+  }
+  function openSheet(want) {
+    let tab = want || "statsPanel";
+    if (!want) { try { tab = localStorage.getItem("bcs-tab") || tab; } catch (e) {} }
+    if (!$(tab)) tab = "statsPanel";
+    lastFocus = $("menuBtn");
+    $("sheet").hidden = false;
+    document.documentElement.style.overflow = "hidden";
+    showTab(tab);
+    $("sheet").querySelector(".sheet-close").focus();
+  }
+  function closeSheet() {
+    $("sheet").hidden = true;
+    document.documentElement.style.overflow = "";
+    state.reordering = false; state.confirmMember = null; renderMembers();
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  // Dropdown menu
+  function menuItems() { return [...$("menuList").querySelectorAll("button:not([hidden])")]; }
+  function openMenu() {
+    $("menuList").hidden = false; $("menuBtn").setAttribute("aria-expanded", "true");
+    menuItems()[0].focus();
+  }
+  function closeMenu(refocus) { if ($("menuList").hidden) return; $("menuList").hidden = true; $("menuBtn").setAttribute("aria-expanded", "false"); if (refocus) $("menuBtn").focus(); }
+  function goTo(el) {
+    if (!el || el.hidden) return;
+    const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+  }
+  $("menuBtn").addEventListener("click", () => $("menuList").hidden ? openMenu() : closeMenu(false));
+  $("menuList").addEventListener("click", e => {
+    const b = e.target.closest("[data-go]"); if (!b) return;
+    const go = b.dataset.go; closeMenu(false);
+    if (go === "statsPanel" || go === "membersPanel") return openSheet(go);
+    if (go === "home") {
+      if (!$("sheet").hidden) closeSheet();
+      const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    }
+  });
+  $("menuList").addEventListener("keydown", e => {
+    const items = menuItems(), i = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+    else if (e.key === "Home") { e.preventDefault(); items[0].focus(); }
+    else if (e.key === "End") { e.preventDefault(); items[items.length - 1].focus(); }
+    else if (e.key === "Tab") closeMenu(false);
+  });
+  document.addEventListener("click", e => { if (!e.target.closest(".menu-wrap")) closeMenu(false); });
+  $("sheet").addEventListener("click", e => { if (e.target.closest("[data-close]")) closeSheet(); const t = e.target.closest("[data-tab]"); if (t) showTab(t.dataset.tab); });
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    if (!$("menuList").hidden) closeMenu(true); else if (!$("lightbox").hidden) closeLightbox(); else if (!$("sheet").hidden) closeSheet();
+  });
+
+  // Cover lightbox
+  let lbBook = null, lbFocus = null;
+  function openLightbox(id) {
+    const book = state.books.find(b => b.id === id); if (!book) return;
+    lbBook = id; lbFocus = document.activeElement;
+    $("lbArt").innerHTML = coverHTML(book).replace(' loading="lazy"', "");
+    $("lbTitle").textContent = book.title;
+    $("lbAuthor").textContent = book.author || "";
+    const canCover = !!state.assets && canEditShelf();
+    $("lbActions").hidden = !canCover;
+    $("lbChange").textContent = book.coverId ? "Upload new cover" : "Add cover photo";
+    $("lbRemove").hidden = !book.coverId;
+    $("lightbox").hidden = false; document.documentElement.style.overflow = "hidden";
+    $("lightbox").querySelector(".lb-close").focus();
+  }
+  function closeLightbox() {
+    $("lightbox").hidden = true; lbBook = null;
+    if ($("sheet").hidden) document.documentElement.style.overflow = "";
+    if (lbFocus && lbFocus.focus) lbFocus.focus();
+  }
+  $("lightbox").addEventListener("click", e => { if (e.target.closest("[data-lb-close]")) closeLightbox(); });
+  $("lbChange").addEventListener("click", () => { const id = lbBook; closeLightbox(); state.coverFor = id; $("coverInput").click(); });
+  $("lbRemove").addEventListener("click", () => { const id = lbBook; closeLightbox(); guard(() => state.db.doc("books/" + id).update({ coverId: null })); });
+
+  // Add a book (in the shelf header)
+  function closeAdd() { $("addPanel").hidden = true; $("addBookBtn").setAttribute("aria-expanded", "false"); }
+  $("addBookBtn").addEventListener("click", () => {
+    const open = $("addPanel").hidden;
+    $("addPanel").hidden = !open; $("addBookBtn").setAttribute("aria-expanded", String(open));
+    if (open) $("bTitle").focus();
+  });
+  $("bCancel").addEventListener("click", closeAdd);
+
+
+  // Organizer sign-in / sign-out, and the one-time import
+  (async () => {
+    if (!window.bbc) return;
+    const me = await window.bbc.whoAmI().catch(() => null);
+    if (me && me.email) {
+      $("footWho").textContent = me.organizer ? `Organizer: ${me.email}` : `Signed in as ${me.email} (not an organizer)`;
+      $("footAuth").textContent = "Sign out";
+      $("footAuth").onclick = () => window.bbc.signOut();
+    } else {
+      $("footAuth").onclick = () => window.bbc.signIn().catch(e => notice("Sign-in didn't complete. " + (e && e.message ? e.message : ""), true));
+    }
+  })();
+  document.addEventListener("click", async e => {
+    if (e.target.id !== "importBtn") return;
+    e.target.disabled = true; e.target.textContent = "Importing…";
+    try {
+      const data = await (await fetch("import.json", { cache: "no-store" })).json();
+      const n = await window.bbc.importShelf(data);
+      notice(`Imported ${n} items. Welcome to the Boston Book Club site.`);
+    } catch (err) {
+      e.target.disabled = false; e.target.textContent = "Import the shelf";
+      notice("Import failed: " + (err && err.message ? err.message : "unknown error"), true);
+    }
+  });
+
+  render();
+
+  (async () => {
+    const use = window.claude && window.claude.use;
+    const db = use ? await window.claude.use("db") : null;
+    if (!db) {
+      state.ready = true; state.canWrite = false;
+      notice("Couldn't connect to the club's database. Check your connection and reload.", true);
+      render(); return;
+    }
+    state.db = db;
+    const user = await window.claude.use("user");
+    if (user) { const can = await user.can("data.write"); if (can === false) state.canWrite = false; }
+    db.doc("club/next").onSnapshot(snap => { state.next = snap.exists ? snap.data() : null; renderNext(); }, () => {});
+    db.doc("club/settings").onSnapshot(snap => {
+      if (snap.exists) {
+        const d = snap.data();
+        state.settings = { name: d.name || "Our Book Club", members: Array.isArray(d.members) ? d.members : [], periods: migratePeriods(d) };
+      }
+      render();
+    }, () => notice("Lost connection to the shelf. Reload to reconnect.", true));
+    db.collection("books").onSnapshot(snap => {
+      state.books = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      state.ready = true; render();
+    }, () => { state.ready = true; notice("Lost connection to the shelf. Reload to reconnect.", true); render(); });
+    window.claude.use("assets").then(a => { if (a) { state.assets = a; render(); } });
+    db.collection("covers").onSnapshot(snap => {
+      const m = {}; snap.docs.forEach(d => { const x = d.data(); if (x && x.data) m[d.id] = x.data; });
+      state.coverData = m; render();
+    }, () => {});
+    if (user) { V.isAdmin = !!(await user.canEdit()); try { V.uid = await user.id(); } catch (e) {} }
+    render();
+    const voteErr = () => notice("Lost connection to the vote. Reload to reconnect.", true);
+    db.collection("rounds").onSnapshot(snap => { V.rounds = snap.docs.map(d => ({ id: d.id, ...d.data() })); const r = currentRound(); if (r) loadMine(r.id); renderVote(); }, voteErr);
+    db.collection("suggestions").onSnapshot(snap => { V.suggestions = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderVote(); }, voteErr);
+    db.collection("ballots").onSnapshot(snap => { V.ballots = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderVote(); }, voteErr);
+  })();
+})();
+</script>
+
+</body>
+</html>
