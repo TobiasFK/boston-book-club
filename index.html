@@ -399,6 +399,9 @@ details.add[open] summary::after { content: "–"; }
 #voteHead .muted { max-width: 62ch; }
 .sg-form { border: 1px dashed var(--line); border-radius: 10px; padding: 14px !important; }
 textarea { font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; width: 100%; resize: vertical; }
+.sealed { display: flex; flex-direction: column; gap: 2px; border: 1.5px dashed var(--line); border-radius: 10px; padding: 14px 16px; text-align: center; }
+.sealed strong { font-family: var(--display); font-size: 17px; font-weight: 600; }
+.sealed span { color: var(--muted); font-size: 14px; }
 .sg-list { display: flex; flex-direction: column; gap: 8px; }
 .sg { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: start; }
 .sg.picked { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
@@ -1066,12 +1069,29 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
 
   // ---------- Next-book vote ----------
   // rounds/{id}: {phase: "suggest"|"vote"|"closed", createdAt, picks, results, ballotCount, closedAt, shelfBookId}
-  // suggestions/{id}: {roundId, title, author, pages, description, createdAt}  (no names: anonymous)
+  // rounds/{rid}/suggestions/{id}: {roundId, title, author, pages, description, createdAt}  (no names: anonymous;
+  //   sealed by the rules: nobody but the organizer's tally can read them until the round moves to voting)
   // ballots/{random id}: {roundId, picks: [suggestionId, ...]}                  (no names: anonymous)
-  // data/users/<me>/vote-<roundId>: {suggestions: [ids], ballotId}          (private to each person)
+  // data/users/<me>/vote-<roundId>: {suggestions: [ids], items: [own suggestions], ballotId}  (private to each person)
   const MAX_SUGGESTIONS = 2;
   const V = { rounds: [], suggestions: [], ballots: [], uid: null, isAdmin: false, mine: {}, draft: null, draftRound: null, confirm: null, busy: false };
   const currentRound = () => V.rounds.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0] || null;
+  // Suggestions live under their round. While a round is collecting suggestions the rules keep them sealed,
+  // so members' listener is refused; re-subscribe whenever the round or its phase changes.
+  let sugKey = null, sugUnsub = null;
+  function syncSuggestions() {
+    if (!state.db) return;
+    const r = currentRound();
+    const key = r ? r.id + ":" + r.phase + ":" + V.isAdmin : "none";
+    if (key === sugKey) return;
+    sugKey = key; if (sugUnsub) { sugUnsub(); sugUnsub = null; }
+    V.suggestions = []; V.sealed = false;
+    if (!r) return;
+    if (r.phase === "suggest" && !V.isAdmin) { V.sealed = true; return; }
+    sugUnsub = state.db.collection("rounds/" + r.id + "/suggestions").onSnapshot(
+      snap => { V.suggestions = snap.docs.map(d => ({ id: d.id, roundId: r.id, ...d.data() })); renderVote(); },
+      () => { V.sealed = true; renderVote(); });
+  }
   const roundSugs = (r) => V.suggestions.filter(x => x.roundId === r.id).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   const roundBallots = (r) => V.ballots.filter(x => x.roundId === r.id);
   const picksFor = (n) => n >= 6 ? 3 : n >= 4 ? 2 : 1;
@@ -1151,13 +1171,17 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       if (V.startMode) admin.innerHTML = "";
     } else if (phase === "suggest") {
       const sugs = roundSugs(r);
-      head.innerHTML = `<h2>Next book: suggestions</h2>${themeHTML}<p class="muted">Suggest up to ${MAX_SUGGESTIONS} books. Suggestions don't show who sent them. ${canAct ? (left > 0 ? `You have ${left} left.` : "You've used both of yours.") : ""}</p>`;
+      head.innerHTML = `<h2>Next book: suggestions</h2>${themeHTML}<p class="muted">Suggest up to ${MAX_SUGGESTIONS} books. Suggestions are anonymous and stay sealed until voting opens, so nobody sees the list before then. ${canAct ? (left > 0 ? `You have ${left} left.` : "You've used both of yours.") : ""}</p>`;
       $("sgSubmit").disabled = left <= 0;
-      list.innerHTML = sugs.length ? `<div class="sg-list">${sugs.map(s => {
-        const mine = myRec(r).suggestions.includes(s.id);
+      const ownItems = (myRec(r).items || []).filter(x => myRec(r).suggestions.includes(x.id));
+      const sealedNote = V.isAdmin
+        ? `<div class="sealed"><strong>${sugs.length} book${sugs.length === 1 ? "" : "s"} suggested so far</strong><span>Titles stay hidden until you open voting.</span></div>`
+        : `<div class="sealed"><strong>Suggestions are sealed</strong><span>You'll see every suggested book when voting opens.</span></div>`;
+      list.innerHTML = sealedNote + (ownItems.length ? `<p class="sub-head">Your suggestions</p><div class="sg-list">${ownItems.map(s => {
+        const mine = true;
         const side = (mine || V.isAdmin) && canAct ? `<div class="sg-side">${V.confirm === "del:" + s.id ? `<button class="link-btn danger-link" type="button" data-vact="del-yes" data-id="${esc(s.id)}">Confirm remove</button><button class="link-btn quiet" type="button" data-vact="cancel">Keep</button>` : `<button class="link-btn quiet" type="button" data-vact="del" data-id="${esc(s.id)}">Remove</button>`}</div>` : "";
         return sugCard(s, r, { side });
-      }).join("")}</div>` : `<div class="empty-state"><strong>No suggestions yet</strong><span>Be the first to put a book forward.</span></div>`;
+      }).join("")}</div>` : "");
       admin.innerHTML = V.isAdmin && !V.startMode ? (confirmBox("cancel-round", "Cancel this round? All suggestions in it will be deleted and the section will be hidden from members again.", "Cancel round") || confirmBox("tovote", `Close suggestions and open voting on ${sugs.length} books? Everyone gets ${picksFor(sugs.length)} ranked pick${picksFor(sugs.length) > 1 ? "s" : ""}.`, "Open voting")
         || `<button class="btn" type="button" data-vact="tovote"${sugs.length < 2 ? " disabled" : ""}>Close suggestions & start voting</button>${sugs.length < 2 ? `<span class="muted">Needs at least 2 suggestions.</span>` : ""}<button class="link-btn" type="button" data-vact="edit-theme">${r.theme || r.when || r.where ? "Edit round details" : "Add theme, time & place"}</button>${cancelBtn}`) : "";
     } else if (phase === "vote") {
@@ -1220,7 +1244,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     if (act === "cancel-round-yes") {
       V.confirm = null; V.sgOpen = false;
       if (!r || r.phase === "closed") return renderVote();
-      for (const x of roundSugs(r)) await guard(() => state.db.doc("suggestions/" + x.id).delete());
+      for (const x of roundSugs(r)) await guard(() => state.db.doc("rounds/" + r.id + "/suggestions/" + x.id).delete());
       for (const x of roundBallots(r)) await guard(() => state.db.doc("ballots/" + x.id).delete());
       await guard(() => state.db.doc("rounds/" + r.id).delete());
       return renderVote();
@@ -1230,9 +1254,9 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     if (act === "del") { V.confirm = "del:" + t.dataset.id; return renderVote(); }
     if (act === "del-yes") {
       const id = t.dataset.id; V.confirm = null;
-      const ok = await guard(() => state.db.doc("suggestions/" + id).delete());
+      const ok = await guard(() => state.db.doc("rounds/" + r.id + "/suggestions/" + id).delete());
       const rec = myRec(r);
-      if (ok && rec.suggestions.includes(id)) { V.mine[r.id] = { ...rec, suggestions: rec.suggestions.filter(x => x !== id) }; await guard(() => saveMine(r.id)); }
+      if (ok && rec.suggestions.includes(id)) { V.mine[r.id] = { ...rec, suggestions: rec.suggestions.filter(x => x !== id), items: (rec.items || []).filter(x => x.id !== id) }; await guard(() => saveMine(r.id)); }
       return renderVote();
     }
     if (act === "tovote") { V.confirm = "tovote"; return renderVote(); }
@@ -1278,11 +1302,11 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const title = $("sgTitle").value.trim(), author = $("sgAuthor").value.trim();
     if (!title || !author) return;
     const doc = { roundId: r.id, title, author, pages: $("sgPages").value.trim(), description: $("sgDesc").value.trim().slice(0, 1200), createdAt: Date.now() };
-    const ref = state.db.collection("suggestions").doc();
+    const ref = state.db.collection("rounds/" + r.id + "/suggestions").doc();
     $("sgSubmit").disabled = true;
     const ok = await guard(() => ref.set(doc));
     if (ok) {
-      V.mine[r.id] = { ...rec, suggestions: [...rec.suggestions, ref.id] };
+      V.mine[r.id] = { ...rec, suggestions: [...rec.suggestions, ref.id], items: [...(rec.items || []), { id: ref.id, title: doc.title, author: doc.author, pages: doc.pages, description: doc.description }] };
       await guard(() => saveMine(r.id));
       ["sgTitle", "sgAuthor", "sgPages", "sgDesc"].forEach(id => $(id).value = "");
       V.sgOpen = false; notice("Suggestion submitted anonymously.");
@@ -1542,8 +1566,8 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     if (user) { V.isAdmin = !!(await user.canEdit()); try { V.uid = await user.id(); } catch (e) {} }
     render();
     const voteErr = () => notice("Lost connection to the vote. Reload to reconnect.", true);
-    db.collection("rounds").onSnapshot(snap => { V.rounds = snap.docs.map(d => ({ id: d.id, ...d.data() })); const r = currentRound(); if (r) loadMine(r.id); renderVote(); }, voteErr);
-    db.collection("suggestions").onSnapshot(snap => { V.suggestions = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderVote(); }, voteErr);
+    db.collection("rounds").onSnapshot(snap => { V.rounds = snap.docs.map(d => ({ id: d.id, ...d.data() })); const r = currentRound(); if (r) loadMine(r.id); syncSuggestions(); renderVote(); }, voteErr);
+    syncSuggestions();
     db.collection("ballots").onSnapshot(snap => { V.ballots = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderVote(); }, voteErr);
   })();
 })();

@@ -2,7 +2,7 @@ rules_version = '2';
 // Boston Book Club: who can read and write what.
 // Reading anything requires the club password (entered once per device) or the organizer account.
 // Changing the password locks every device out until it is entered again.
-// Members can rate books, suggest books and cast one ballot per round.
+// Members can rate books, suggest books (sealed until voting opens) and cast one ballot per round.
 // Only the organizer account can change club info, books, covers, members and vote rounds.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -41,15 +41,18 @@ service cloud.firestore {
       allow update: if organizer()
         || (member() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ratings']));
     }
-    match /suggestions/{id} {
-      allow read: if inClub();
+    // Suggestions are sealed while a round collects them: only the organizer's count/tally can read them.
+    // Everyone in the club can read them once the round moves to voting.
+    match /rounds/{rid}/suggestions/{id} {
+      allow read: if organizer() || (inClub() && phase(rid) != 'suggest');
       allow create: if inClub()
         && request.resource.data.keys().hasOnly(['roundId', 'title', 'author', 'pages', 'description', 'createdAt'])
+        && request.resource.data.roundId == rid
         && request.resource.data.title is string && request.resource.data.title.size() <= 140
-        && phase(request.resource.data.roundId) == 'suggest'
-        && myRecord(request.resource.data.roundId).get('suggestions', []).size() < 2;
+        && phase(rid) == 'suggest'
+        && myRecord(rid).get('suggestions', []).size() < 2;
       allow delete: if organizer()
-        || (inClub() && myRecord(resource.data.roundId).get('suggestions', []).hasAny([id]));
+        || (inClub() && phase(rid) == 'suggest' && myRecord(rid).get('suggestions', []).hasAny([id]));
     }
     match /ballots/{id} {
       allow read: if inClub();
