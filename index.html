@@ -399,6 +399,8 @@ details.add[open] summary::after { content: "–"; }
 #voteHead .muted { max-width: 62ch; }
 .sg-form { border: 1px dashed var(--line); border-radius: 10px; padding: 14px !important; }
 textarea { font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; width: 100%; resize: vertical; }
+.done-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 6px; }
+.done-row span { flex: 1 1 220px; font-size: 14px; }
 .sealed { display: flex; flex-direction: column; gap: 2px; border: 1.5px dashed var(--line); border-radius: 10px; padding: 14px 16px; text-align: center; }
 .sealed strong { font-family: var(--display); font-size: 17px; font-weight: 600; }
 .sealed span { color: var(--muted); font-size: 14px; }
@@ -1157,7 +1159,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     if (!head) return;
     const r = currentRound();
     const phase = r ? r.phase : "none";
-    const stale = phase === "closed" && Date.now() - (r.closedAt || 0) > 21 * 86400000;
+    const stale = phase === "closed" && (r.archived || Date.now() - (r.closedAt || 0) > 21 * 86400000);
     const quiet = phase === "none" || stale;
     $("votePanel").hidden = quiet && !V.isAdmin;
     $("votePanel").classList.toggle("quiet", quiet);
@@ -1210,7 +1212,8 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
           <div class="ballot-slots">${Array.from({ length: k }, (_, i) => { const s = sugs.find(x => x.id === d[i]); return `<div class="slot${s ? " full" : ""}"><span class="slot-n">${ORD[i]}</span><span class="slot-t">${s ? esc(s.title) : "Tap a book below"}</span></div>`; }).join("")}</div>
           <div class="ballot-act">${saved && !changed ? `<span class="ok">✓ Your ballot is in. You can change it until voting closes.</span>` : `<button class="btn" type="button" data-vact="cast"${d.length ? "" : " disabled"}${V.busy ? " disabled" : ""}>${saved ? "Update my ballot" : "Cast my ballot"}</button>${d.length && d.length < k ? `<span class="muted">You can also leave picks empty.</span>` : ""}`}</div>
         </div>` : "";
-      list.innerHTML = tray + `<div class="sg-list">${sugs.map(s => {
+      const votedNote = `<div class="sealed"><strong>${n} ${n === 1 ? "person has" : "people have"} voted</strong><span>Results stay hidden until the organizer closes voting.</span></div>`;
+      list.innerHTML = votedNote + tray + `<div class="sg-list">${sugs.map(s => {
         const at = d.indexOf(s.id);
         const side = canAct ? `<div class="sg-side">${at >= 0 ? `<span class="rank">${ORD[at]}</span><button class="link-btn quiet" type="button" data-vact="unpick" data-id="${esc(s.id)}">Remove</button>` : `<button class="pick" type="button" data-vact="pick" data-id="${esc(s.id)}"${d.length >= k ? " disabled" : ""}>Pick${d.length < k ? ` as ${ORD[d.length]}` : ""}</button>`}</div>` : "";
         return sugCard(s, r, { side, picked: at >= 0 ? at : null });
@@ -1219,15 +1222,15 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     } else {
       const res = r.results || [], max = Math.max(1, ...res.map(x => x.points));
       const tie = res.length > 1 && res[0].points === res[1].points && res[0].firsts === res[1].firsts;
-      const onShelf = r.shelfBookId && state.books.some(b => b.id === r.shelfBookId);
+      const onShelf = !!(r.chosenTitle || r.shelfBookId);
       const winner = !tie && res[0];
-      head.innerHTML = `<h2>${winner ? `The club picked <em>${esc(winner.title)}</em>` : "Voting closed: it's a tie"}</h2><p class="muted">${r.ballotCount || 0} ballot${r.ballotCount === 1 ? "" : "s"} · ${r.picks > 1 ? `ranked, ${Array.from({ length: r.picks }, (_, i) => r.picks - i).join("/")} points` : "one pick each"}${winner ? (onShelf ? " · Added to the shelf and set as the next meeting's book." : "") : V.isAdmin ? " · Choose which tied book to read." : " · The organiser will choose between the tied books."}</p>`;
+      head.innerHTML = `<h2>${winner ? `The club picked <em>${esc(winner.title)}</em>` : "Voting closed: it's a tie"}</h2><p class="muted">${r.ballotCount || 0} ballot${r.ballotCount === 1 ? "" : "s"} · ${r.picks > 1 ? `ranked, ${Array.from({ length: r.picks }, (_, i) => r.picks - i).join("/")} points` : "one pick each"}${winner ? (onShelf ? " · Set as the next meeting's book." : "") : V.isAdmin ? " · Choose which tied book to read." : " · The organiser will choose between the tied books."}</p>`;
       list.innerHTML = `<details class="past"${tie ? " open" : ""}><summary>Full results</summary><ol class="results" style="margin-top:8px">${res.map((x, i) => `<li class="res${i === 0 && !tie ? " win" : ""}">
           <span class="res-pos">${i + 1}</span>
           <div class="res-main"><span class="res-title">${esc(x.title)}</span>${x.author ? `<span class="sg-meta">${esc(x.author)}${x.pages ? ` · ${esc(x.pages)} pages` : ""}</span>` : ""}
             <span class="res-bar"><span style="width:${(x.points / max) * 100}%"></span></span>
             <span class="res-sub">${x.points} pt${x.points === 1 ? "" : "s"} · ${x.firsts} first-choice · on ${x.voters} ballot${x.voters === 1 ? "" : "s"}</span></div>
-          ${V.isAdmin && canAct && !onShelf && (i === 0 || tie && x.points === res[0].points && x.firsts === res[0].firsts) ? `<button class="btn ghost" type="button" data-vact="shelve" data-i="${i}">Add to shelf</button>` : ""}
+          ${V.isAdmin && canAct && !onShelf && (i === 0 || tie && x.points === res[0].points && x.firsts === res[0].firsts) ? `<button class="btn ghost" type="button" data-vact="shelve" data-i="${i}">Choose this book</button>` : ""}
         </li>`).join("")}</ol></details>`;
       admin.innerHTML = V.isAdmin ? (V.startMode ? "" : `<button class="btn ghost" type="button" data-vact="start">Start the submission process</button>`) : "";
     }
@@ -1236,16 +1239,13 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   }
 
   // Put the winning book on the shelf and make it the next meeting's book.
-  async function shelveWinner(r, x) {
-    const n = state.next || {};
-    const month = /^\d{4}-\d{2}/.test(n.date || "") ? n.date.slice(0, 7) : $("bMonth").value || "";
-    const ref = state.db.collection("books").doc();
-    const ok = await guard(() => ref.set({ title: x.title, author: x.author || "", readOn: month, pickedBy: "", ratings: {}, createdAt: Date.now() }));
-    if (!ok) return;
-    await guard(() => state.db.doc("rounds/" + r.id).update({ shelfBookId: ref.id }));
-    const next = { ...(state.next || {}), bookId: ref.id, updatedAt: Date.now() };
-    state.next = next;
+  // The vote winner becomes the next meeting's book. It goes on the shelf only after the discussion,
+  // when the organizer taps "Discussion done" on the Next meeting card.
+  async function chooseWinner(r, x) {
+    const next = { ...(state.next || {}), bookId: "", pending: { title: x.title, author: x.author || "", roundId: r.id }, updatedAt: Date.now() };
+    state.next = next; renderNext();
     await guard(() => state.db.doc("club/next").set(next));
+    await guard(() => state.db.doc("rounds/" + r.id).update({ chosenTitle: x.title }));
   }
 
   async function voteAction(act, t) {
@@ -1296,10 +1296,10 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       const t2 = tally(r), res = t2.list;
       const ok = await guard(() => state.db.doc("rounds/" + r.id).update({ phase: "closed", results: res, ballotCount: t2.ballotCount, closedAt: Date.now() }));
       const tie = res.length > 1 && res[0].points === res[1].points && res[0].firsts === res[1].firsts;
-      if (ok && res.length && !tie) await shelveWinner(r, res[0]);
+      if (ok && res.length && !tie) await chooseWinner(r, res[0]);
       return;
     }
-    if (act === "shelve") { const x = (r.results || [])[+t.dataset.i]; if (x) await shelveWinner(r, x); }
+    if (act === "shelve") { const x = (r.results || [])[+t.dataset.i]; if (x) await chooseWinner(r, x); }
   }
 
   $("startForm").addEventListener("submit", async e => {
@@ -1345,8 +1345,12 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   function renderNext() {
     const card = $("nextCard"), n = state.next || {};
     card.hidden = state.editingNext;
-    const book = n.bookId && state.books.find(b => b.id === n.bookId);
+    const book = (n.bookId && state.books.find(b => b.id === n.bookId))
+      || (n.pending && n.pending.title ? { title: n.pending.title, author: n.pending.author || "", pending: true } : null);
     const canPlan = canEditShelf() && V.isAdmin;
+    const doneBtn = canPlan && book ? (state.confirmDone
+      ? `<div class="done-row"><span>Add <b>${esc(book.title)}</b> to the shelf and clear the next meeting? The vote section resets for a new round.</span><button class="btn" type="button" id="nDoneYes">Add to shelf</button><button class="btn ghost" type="button" id="nDoneNo">Not yet</button></div>`
+      : `<div class="done-row"><button class="btn ghost" type="button" id="nDone">Discussion done – add to shelf</button></div>`) : "";
     const editBtn = canPlan ? `<button class="link-btn" type="button" id="nEdit">Edit</button>` : "";
     card.classList.remove("featured");
     if (!n.date && !book && !n.host && !n.where) {
@@ -1369,13 +1373,14 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     if (book && days != null && days >= 0) {
       card.classList.add("featured");
       const big = days === 0 ? "Today" : days === 1 ? "Tomorrow" : String(days);
-      card.innerHTML = `<button class="cover-btn feat-cover" type="button" data-act="zoom" data-id="${esc(book.id)}" aria-label="Enlarge cover of ${esc(book.title)}">${coverHTML(book)}</button>
+      card.innerHTML = `${book.id ? `<button class="cover-btn feat-cover" type="button" data-act="zoom" data-id="${esc(book.id)}" aria-label="Enlarge cover of ${esc(book.title)}">${coverHTML(book)}</button>` : `<div class="feat-cover">${coverHTML(book)}</div>`}
         <div class="feat-body">
           <div class="next-top"><span class="eyebrow feat-eyebrow">Next meeting · we're reading</span>${editBtn}</div>
           <h2 class="feat-title">${esc(book.title)}</h2>
           ${book.author ? `<div class="feat-author">${esc(book.author)}</div>` : ""}
           <div class="feat-when">${cal}<div><div class="next-when">${esc(when)}</div>${hostLine}</div></div>
           <div class="feat-count"><span class="n">${big}</span>${days > 1 ? `<span>days to go</span>` : `<span>${days === 0 ? "See you there" : "Almost time"}</span>`}</div>
+          ${doneBtn}
         </div>`;
       return;
     }
@@ -1383,6 +1388,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
         <div class="next-top"><div><span class="eyebrow">Next meeting</span><div class="next-when">${esc(when)}</div>${rel ? `<span class="next-rel">${rel}</span>` : ""}</div>${editBtn}</div>
         <div class="next-book">${book ? coverHTML(book, true) : `<div class="cover sm gen" style="--c1:var(--line);--c2:var(--muted)"><span class="gt">?</span></div>`}<div><div class="t">${book ? esc(book.title) : "Book to be decided"}</div>${book && book.author ? `<div class="a">${esc(book.author)}</div>` : ""}</div></div>
         ${hostLine}
+        ${doneBtn}
       </div>`;
   }
   function openNextForm() {
@@ -1390,18 +1396,41 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const n = state.next || {};
     $("nDate").value = n.date || ""; $("nTime").value = n.time || "";
     const list = state.books.slice().sort(byRecent);
-    $("nBook").innerHTML = `<option value="">Not decided yet</option>` + list.map(b => `<option value="${esc(b.id)}">${esc(b.title)}</option>`).join("");
-    $("nBook").value = n.bookId || "";
+    $("nBook").innerHTML = `<option value="">Not decided yet</option>`
+      + (n.pending && n.pending.title ? `<option value="__pending">${esc(n.pending.title)} (vote winner)</option>` : "")
+      + list.map(b => `<option value="${esc(b.id)}">${esc(b.title)}</option>`).join("");
+    $("nBook").value = n.bookId || (n.pending && n.pending.title ? "__pending" : "");
     $("nHostList").innerHTML = activeMembers().map(m => `<option value="${esc(m)}"></option>`).join("");
     $("nHost").value = n.host || ""; $("nWhere").value = n.where || "";
     state.editingNext = true; $("nextForm").hidden = false; renderNext(); $("nDate").focus();
   }
   function closeNextForm() { state.editingNext = false; $("nextForm").hidden = true; renderNext(); }
   document.addEventListener("click", e => { if (e.target.id === "nEdit") openNextForm(); });
+  // After the meeting: the book goes on the shelf, the card clears and the vote section resets.
+  document.addEventListener("click", async e => {
+    const id = e.target.id;
+    if (id === "nDone") { state.confirmDone = true; renderNext(); return; }
+    if (id === "nDoneNo") { state.confirmDone = false; renderNext(); return; }
+    if (id !== "nDoneYes") return;
+    state.confirmDone = false;
+    const n = state.next || {};
+    const month = /^\d{4}-\d{2}/.test(n.date || "") ? n.date.slice(0, 7) : new Date().toISOString().slice(0, 7);
+    if (!n.bookId && n.pending && n.pending.title) {
+      const ok = await guard(() => state.db.collection("books").doc().set({ title: n.pending.title, author: n.pending.author || "", readOn: month, pickedBy: "", ratings: {}, createdAt: Date.now() }));
+      if (!ok) return;
+    }
+    state.next = {}; renderNext();
+    await guard(() => state.db.doc("club/next").set({ updatedAt: Date.now() }));
+    const r = currentRound();
+    if (r && r.phase === "closed" && !r.archived) await guard(() => state.db.doc("rounds/" + r.id).update({ archived: true }));
+    notice("Added to the shelf. Rate it there, then start the next round when you're ready.");
+  });
   $("nCancel").addEventListener("click", closeNextForm);
   $("nextForm").addEventListener("submit", e => {
     e.preventDefault();
-    const data = { date: $("nDate").value, time: $("nTime").value, bookId: $("nBook").value, host: $("nHost").value.trim(), where: $("nWhere").value.trim(), updatedAt: Date.now() };
+    const pick = $("nBook").value, prev = state.next || {};
+    const data = { date: $("nDate").value, time: $("nTime").value, bookId: pick === "__pending" ? "" : pick, host: $("nHost").value.trim(), where: $("nWhere").value.trim(), updatedAt: Date.now() };
+    if (pick === "__pending" && prev.pending) data.pending = prev.pending;
     state.next = data; closeNextForm();
     guard(() => state.db.doc("club/next").set(data));
   });
