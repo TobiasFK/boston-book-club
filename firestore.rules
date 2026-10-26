@@ -1,6 +1,7 @@
 rules_version = '2';
 // Boston Book Club: who can read and write what.
-// Reading anything requires the club password (entered once per device) or the organizer account.
+// Reading anything requires the club password (entered once per device) or the organizer account,
+// unless the organizer has switched the password off.
 // Changing the password locks every device out until it is entered again.
 // Members can rate books, suggest books (sealed until voting opens) and cast one ballot per round.
 // Only the organizer account can change club info, books, covers, members and vote rounds.
@@ -9,9 +10,12 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function secret() { return /databases/$(database)/documents/secrets/club; }
     function access() { return /databases/$(database)/documents/access/$(request.auth.uid); }
+    // Password off (secrets/club has an empty password, or `enabled: false`): everyone with the link is in.
+    // Password on: a device is in once it has stored the current password.
+    function passwordOff() { return exists(secret()) && (get(secret()).data.password == '' || get(secret()).data.get('enabled', true) == false); }
     function member() {
-      return signedIn() && exists(secret()) && exists(access())
-        && get(access()).data.key == get(secret()).data.password;
+      return signedIn() && (passwordOff()
+        || (exists(secret()) && exists(access()) && get(access()).data.key == get(secret()).data.password));
     }
     function inClub() { return organizer() || member(); }
     function organizer() {

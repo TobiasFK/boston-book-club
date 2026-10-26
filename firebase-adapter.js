@@ -145,12 +145,20 @@
   }
   async function getPassword() {
     const F = await ready;
-    try { const s = await F.fs.getDoc(F.fs.doc(F.db, "secrets/club")); return s.exists() ? s.data().password || "" : ""; }
-    catch (e) { return null; }
+    try {
+      const s = await F.fs.getDoc(F.fs.doc(F.db, "secrets/club"));
+      const d = s.exists() ? s.data() : {};
+      return { password: d.password || "", enabled: d.enabled !== false && !!d.password };
+    } catch (e) { return null; }
+  }
+  // Switch the password on/off without forgetting it. Off = anyone with the link gets in.
+  async function setPasswordEnabled(enabled) {
+    const F = await ready;
+    await F.fs.setDoc(F.fs.doc(F.db, "secrets/club"), { enabled: !!enabled, updatedAt: Date.now() }, { merge: true });
   }
   async function setPassword(password) {
     const F = await ready;
-    await F.fs.setDoc(F.fs.doc(F.db, "secrets/club"), { password: String(password), updatedAt: Date.now() });
+    await F.fs.setDoc(F.fs.doc(F.db, "secrets/club"), { password: String(password), enabled: true, updatedAt: Date.now() });
     // Keep the organizer's own device unlocked too.
     await F.fs.setDoc(F.fs.doc(F.db, "access/" + F.auth.currentUser.uid), { key: String(password), at: Date.now() });
   }
@@ -166,5 +174,5 @@
     await F.fs.setDoc(F.fs.doc(F.db, "club/organizers"), { emails, updatedAt: Date.now() });
   }
 
-  window.bbc = { signIn, signOut, whoAmI, importShelf, canRead, join, getPassword, setPassword, getOrganizers, setOrganizers };
+  window.bbc = { signIn, signOut, whoAmI, importShelf, canRead, join, getPassword, setPassword, getOrganizers, setOrganizers, setPasswordEnabled };
 })();

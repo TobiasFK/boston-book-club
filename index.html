@@ -646,11 +646,12 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
         </div>
         <div class="pw-box write-only" id="pwBox">
           <h3>Club password</h3>
-          <p class="muted">Members enter this once per device. Changing it signs everyone out until they enter the new one.</p>
+          <p class="muted" id="pwState"></p>
           <form class="inline-form" id="pwForm">
             <input type="text" id="pwInput" maxlength="60" placeholder="Set a club password" aria-label="Club password" autocomplete="off">
             <button class="btn" type="submit">Save password</button>
           </form>
+          <button class="btn ghost" type="button" id="pwToggle" hidden></button>
         </div>
         <form class="inline-form write-only" id="memberForm">
           <input type="text" id="memberInput" maxlength="40" placeholder="Add a member's name" aria-label="Member name">
@@ -1840,13 +1841,31 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     e.preventDefault();
     const pw = $("pwInput").value.trim();
     if (pw.length < 4) { notice("Use at least 4 characters for the club password.", true); return; }
-    try { await window.bbc.setPassword(pw); notice("Club password saved. Share it with the club."); }
+    try { await window.bbc.setPassword(pw); notice("Club password saved and switched on. Share it with the club."); }
     catch (err) { notice("Couldn't save the password. Make sure you're signed in as organizer.", true); }
+    loadPw();
+  });
+  let pwInfo = null;
+  function drawPw() {
+    if (!pwInfo) return;
+    $("pwState").textContent = pwInfo.enabled
+      ? "On. Members enter it once per device. Changing it signs everyone out until they enter the new one."
+      : pwInfo.password ? "Off. Anyone with the link can see and use the site. Your saved password is kept for when you switch it back on."
+      : "Off. Anyone with the link can see and use the site. Set a password to lock it.";
+    $("pwToggle").hidden = !pwInfo.password;
+    $("pwToggle").textContent = pwInfo.enabled ? "Turn password off" : "Turn password back on";
+  }
+  async function loadPw() { pwInfo = await window.bbc.getPassword(); if (pwInfo) { $("pwInput").value = pwInfo.password; drawPw(); } }
+  $("pwToggle").addEventListener("click", async () => {
+    if (!pwInfo) return;
+    try { await window.bbc.setPasswordEnabled(!pwInfo.enabled); pwInfo.enabled = !pwInfo.enabled; drawPw();
+      notice(pwInfo.enabled ? "Password is on again. Members who already entered it stay signed in." : "Password is off. Anyone with the link can now open the site."); }
+    catch (err) { notice("Couldn't change the password setting. Make sure you're signed in as organizer.", true); }
   });
   (async () => {
     if (!window.bbc) return;
     const me = await window.bbc.whoAmI().catch(() => null);
-    if (me && me.organizer) { const pw = await window.bbc.getPassword(); if (pw != null) { $("pwInput").value = pw; if (!pw) notice("No club password is set yet. Set one under Menu → Members so members can get in."); } }
+    if (me && me.organizer) await loadPw();
   })();
 
   render();
