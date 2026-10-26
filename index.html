@@ -1078,15 +1078,18 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   const currentRound = () => V.rounds.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0] || null;
   // Suggestions live under their round. While a round is collecting suggestions the rules keep them sealed,
   // so members' listener is refused; re-subscribe whenever the round or its phase changes.
-  let sugKey = null, sugUnsub = null;
+  let sugKey = null, sugUnsub = null, tallyUnsub = null;
   function syncSuggestions() {
     if (!state.db) return;
     const r = currentRound();
     const key = r ? r.id + ":" + r.phase + ":" + V.isAdmin : "none";
     if (key === sugKey) return;
     sugKey = key; if (sugUnsub) { sugUnsub(); sugUnsub = null; }
-    V.suggestions = []; V.sealed = false;
+    if (tallyUnsub) { tallyUnsub(); tallyUnsub = null; }
+    V.suggestions = []; V.sealed = false; V.sugCount = null;
     if (!r) return;
+    // Everyone can see how many books are in (tally markers carry no details).
+    tallyUnsub = state.db.collection("rounds/" + r.id + "/tally").onSnapshot(snap => { V.sugCount = snap.docs.length; renderVote(); }, () => {});
     if (r.phase === "suggest" && !V.isAdmin) { V.sealed = true; return; }
     sugUnsub = state.db.collection("rounds/" + r.id + "/suggestions").onSnapshot(
       snap => { V.suggestions = snap.docs.map(d => ({ id: d.id, roundId: r.id, ...d.data() })); renderVote(); },
@@ -1174,9 +1177,8 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       head.innerHTML = `<h2>Next book: suggestions</h2>${themeHTML}<p class="muted">Suggest up to ${MAX_SUGGESTIONS} books. Suggestions are anonymous and stay sealed until voting opens, so nobody sees the list before then. ${canAct ? (left > 0 ? `You have ${left} left.` : "You've used both of yours.") : ""}</p>`;
       $("sgSubmit").disabled = left <= 0;
       const ownItems = (myRec(r).items || []).filter(x => myRec(r).suggestions.includes(x.id));
-      const sealedNote = V.isAdmin
-        ? `<div class="sealed"><strong>${sugs.length} book${sugs.length === 1 ? "" : "s"} suggested so far</strong><span>Titles stay hidden until you open voting.</span></div>`
-        : `<div class="sealed"><strong>Suggestions are sealed</strong><span>You'll see every suggested book when voting opens.</span></div>`;
+      const n = V.sugCount != null ? V.sugCount : sugs.length;
+      const sealedNote = `<div class="sealed"><strong>${n} book${n === 1 ? "" : "s"} suggested so far</strong><span>${V.isAdmin ? "Titles stay hidden until you open voting." : "You'll see every suggested book when voting opens."}</span></div>`;
       list.innerHTML = sealedNote + (ownItems.length ? `<p class="sub-head">Your suggestions</p><div class="sg-list">${ownItems.map(s => {
         const mine = true;
         const side = (mine || V.isAdmin) && canAct ? `<div class="sg-side">${V.confirm === "del:" + s.id ? `<button class="link-btn danger-link" type="button" data-vact="del-yes" data-id="${esc(s.id)}">Confirm remove</button><button class="link-btn quiet" type="button" data-vact="cancel">Keep</button>` : `<button class="link-btn quiet" type="button" data-vact="del" data-id="${esc(s.id)}">Remove</button>`}</div>` : "";
@@ -1244,7 +1246,10 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     if (act === "cancel-round-yes") {
       V.confirm = null; V.sgOpen = false;
       if (!r || r.phase === "closed") return renderVote();
-      for (const x of roundSugs(r)) await guard(() => state.db.doc("rounds/" + r.id + "/suggestions/" + x.id).delete());
+      for (const x of roundSugs(r)) await guard(() => state.db.batch([
+        { op: "delete", path: "rounds/" + r.id + "/suggestions/" + x.id },
+        { op: "delete", path: "rounds/" + r.id + "/tally/" + x.id }
+      ]));
       for (const x of roundBallots(r)) await guard(() => state.db.doc("ballots/" + x.id).delete());
       await guard(() => state.db.doc("rounds/" + r.id).delete());
       return renderVote();
@@ -1254,7 +1259,10 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     if (act === "del") { V.confirm = "del:" + t.dataset.id; return renderVote(); }
     if (act === "del-yes") {
       const id = t.dataset.id; V.confirm = null;
-      const ok = await guard(() => state.db.doc("rounds/" + r.id + "/suggestions/" + id).delete());
+      const ok = await guard(() => state.db.batch([
+        { op: "delete", path: "rounds/" + r.id + "/suggestions/" + id },
+        { op: "delete", path: "rounds/" + r.id + "/tally/" + id }
+      ]));
       const rec = myRec(r);
       if (ok && rec.suggestions.includes(id)) { V.mine[r.id] = { ...rec, suggestions: rec.suggestions.filter(x => x !== id), items: (rec.items || []).filter(x => x.id !== id) }; await guard(() => saveMine(r.id)); }
       return renderVote();
@@ -1304,7 +1312,10 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const doc = { roundId: r.id, title, author, pages: $("sgPages").value.trim(), description: $("sgDesc").value.trim().slice(0, 1200), createdAt: Date.now() };
     const ref = state.db.collection("rounds/" + r.id + "/suggestions").doc();
     $("sgSubmit").disabled = true;
-    const ok = await guard(() => ref.set(doc));
+    const ok = await guard(() => state.db.batch([
+      { op: "set", path: "rounds/" + r.id + "/suggestions/" + ref.id, data: doc },
+      { op: "set", path: "rounds/" + r.id + "/tally/" + ref.id, data: { at: Date.now() } }
+    ]));
     if (ok) {
       V.mine[r.id] = { ...rec, suggestions: [...rec.suggestions, ref.id], items: [...(rec.items || []), { id: ref.id, title: doc.title, author: doc.author, pages: doc.pages, description: doc.description }] };
       await guard(() => saveMine(r.id));

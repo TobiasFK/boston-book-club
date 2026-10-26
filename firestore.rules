@@ -54,6 +54,15 @@ service cloud.firestore {
       allow delete: if organizer()
         || (inClub() && phase(rid) == 'suggest' && myRecord(rid).get('suggestions', []).hasAny([id]));
     }
+    // One empty marker per suggestion, so everyone can see how many books are in without seeing any details.
+    // A marker can only be created together with its suggestion, and removed together with it.
+    match /rounds/{rid}/tally/{sid} {
+      allow read: if inClub();
+      allow create: if inClub() && request.resource.data.keys().hasOnly(['at'])
+        && existsAfter(/databases/$(database)/documents/rounds/$(rid)/suggestions/$(sid));
+      allow delete: if organizer()
+        || (inClub() && !existsAfter(/databases/$(database)/documents/rounds/$(rid)/suggestions/$(sid)));
+    }
     match /ballots/{id} {
       allow read: if inClub();
       allow create: if inClub()

@@ -61,7 +61,12 @@
   async function use(name) {
     let F;
     try { F = await ready; } catch (e) { return null; }
-    if (name === "db") return { doc: (p) => mkDoc(F, F.fs.doc(F.db, p)), collection: (p) => mkColl(F, F.fs.collection(F.db, p)) };
+    if (name === "db") return {
+      doc: (p) => mkDoc(F, F.fs.doc(F.db, p)),
+      collection: (p) => mkColl(F, F.fs.collection(F.db, p)),
+      // Atomic multi-write: [{op: "set" | "delete", path, data}]
+      batch: (ops) => { const b = F.fs.writeBatch(F.db); for (const o of ops) { const r = F.fs.doc(F.db, o.path); if (o.op === "delete") b.delete(r); else b.set(r, o.data); } return wrapErr(b.commit()); }
+    };
     if (name === "user") return {
       isOwner: async () => isOrganizer(F),
       canEdit: async () => isOrganizer(F),
