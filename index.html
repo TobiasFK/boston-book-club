@@ -399,6 +399,23 @@ details.add[open] summary::after { content: "–"; }
 #voteHead .muted { max-width: 62ch; }
 .sg-form { border: 1px dashed var(--line); border-radius: 10px; padding: 14px !important; }
 textarea { font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; width: 100%; resize: vertical; }
+.editor .ed-card { position: relative; width: min(560px, 100%); max-height: 90vh; overflow-y: auto; background: var(--surface); color: var(--ink); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.4); }
+.ed-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.ed-top h2 { font-size: 22px; }
+.ed-grid { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; }
+.ed-cover { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.ed-cover .cover { width: 120px; }
+.ed-cover .btn { padding: 7px 10px; font-size: 13px; }
+.ed-cover .link-btn { font-size: 12px; align-self: center; }
+.ed-fields { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ed-fields input[type="url"] { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; width: 100%; font: inherit; color: inherit; }
+@media (max-width: 480px) { .ed-grid { grid-template-columns: minmax(0, 1fr); } .ed-cover { flex-direction: row; flex-wrap: wrap; align-items: center; } .ed-cover .cover { width: 84px; } }
+.pick-box { display: flex; gap: 14px; align-items: flex-start; border: 1.5px solid var(--star); border-radius: 12px; padding: 14px; }
+.pick-box .cover { width: 72px; }
+.pick-box .pk-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.pick-box .pk-title { font-family: var(--display); font-weight: 600; font-size: 19px; line-height: 1.2; }
+.pick-box .pk-meta { font-size: 13px; color: var(--muted); }
+.pick-box .pk-act { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .done-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 6px; }
 .done-row span { flex: 1 1 220px; font-size: 14px; }
 .sealed { display: flex; flex-direction: column; gap: 2px; border: 1.5px dashed var(--line); border-radius: 10px; padding: 14px 16px; text-align: center; }
@@ -599,6 +616,28 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       </section>
     </div>
   </div>
+</div>
+
+<div class="lightbox editor" id="bookEditor" hidden>
+  <div class="lb-backdrop" data-ed-close></div>
+  <form class="ed-card" id="edForm" role="dialog" aria-modal="true" aria-labelledby="edHead">
+    <div class="ed-top"><h2 id="edHead">Edit book</h2><button class="sheet-close" type="button" data-ed-close aria-label="Close">×</button></div>
+    <div class="ed-grid">
+      <div class="ed-cover">
+        <div id="edCoverArt"></div>
+        <button class="btn ghost" type="button" id="edCoverBtn">Upload cover</button>
+        <button class="link-btn quiet" type="button" id="edCoverRemove">Remove cover</button>
+      </div>
+      <div class="ed-fields">
+        <div class="field"><label for="edTitle">Title</label><input type="text" id="edTitle" maxlength="140" required></div>
+        <div class="field"><label for="edAuthor">Author</label><input type="text" id="edAuthor" maxlength="100"></div>
+        <div class="field"><label for="edMonth">Month we read it</label><input type="month" id="edMonth"></div>
+        <div class="field"><label for="edPicked">Picked by</label><select class="plain" id="edPicked"></select></div>
+        <div class="field"><label for="edGr">Goodreads link (optional)</label><input type="url" id="edGr" maxlength="300" placeholder="https://www.goodreads.com/book/show/…"></div>
+      </div>
+    </div>
+    <div class="next-form-act"><button class="btn" type="submit" id="edSave">Save</button><button class="btn ghost" type="button" data-ed-close>Cancel</button></div>
+  </form>
 </div>
 
 <div class="lightbox" id="lightbox" hidden>
@@ -917,7 +956,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
         if (state.confirmBook === book.id) {
           foot = `<span>Remove this book and its ratings?</span><button class="btn ghost danger" data-act="book-yes" data-id="${esc(book.id)}" type="button">Remove</button><button class="btn ghost" data-act="book-no" type="button">Keep</button>`;
         } else {
-          foot = `<button class="link-btn quiet" data-act="book-ask" data-id="${esc(book.id)}" type="button">Remove book</button>`;
+          foot = `<button class="link-btn" data-act="book-edit" data-id="${esc(book.id)}" type="button">Edit book</button><button class="link-btn quiet" data-act="book-ask" data-id="${esc(book.id)}" type="button">Remove book</button>`;
         }
       }
       const rb = /^\d{4}-\d{2}$/.test(book.readOn || "") ? `<div class="read-cal" role="img" aria-label="Read in ${MONTH_NAMES[+book.readOn.slice(5) - 1]} ${book.readOn.slice(0, 4)}"><span class="rc-mo">${MONTHS[+book.readOn.slice(5) - 1]}</span><span class="rc-yr">${book.readOn.slice(0, 4)}</span></div>` : "";
@@ -1012,6 +1051,16 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const id = state.coverFor;
     $("coverInput").value = "";
     if (!file || !id || !state.assets) return;
+    if (id === "__editor") {
+      $("edCoverBtn").disabled = true; $("edCoverBtn").textContent = "Uploading…";
+      await guard(async () => {
+        const blob = await downscale(file);
+        const res = await state.assets.upload(blob, blob.type ? undefined : { type: "image/jpeg" });
+        state.coverData = { ...state.coverData, [res.id]: res.url };
+        ED.coverId = res.id;
+      });
+      $("edCoverBtn").disabled = false; drawEditorCover(); return;
+    }
     state.uploading = id; render();
     await guard(async () => {
       const blob = await downscale(file);
@@ -1054,6 +1103,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     else if (act === "book-yes") { const id = t.dataset.id; state.confirmBook = null; guard(() => state.db.doc("books/" + id).delete()); }
     else if (act === "cover") { state.coverFor = t.dataset.id; $("coverInput").click(); }
     else if (act === "zoom") { openLightbox(t.dataset.id); }
+    else if (act === "book-edit") { const b = state.books.find(x => x.id === t.dataset.id); if (b) openEditor({ kind: "shelf", id: b.id }, b); }
     else if (act === "cover-clear") { const id = t.dataset.id; guard(() => state.db.doc("books/" + id).update({ coverId: null })); }
   });
   document.addEventListener("change", e => {
@@ -1221,18 +1271,27 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       admin.innerHTML = V.isAdmin ? (confirmBox("cancel-round", "Cancel this round? All suggestions and ballots in it will be deleted and the section will be hidden from members again.", "Cancel round") || confirmBox("close", `Close voting with ${n} ballot${n === 1 ? "" : "s"} and show the results?`, "Show results") || `<button class="btn" type="button" data-vact="close"${n ? "" : " disabled"}>Close voting & show results</button>${cancelBtn}`) : "";
     } else {
       const res = r.results || [], max = Math.max(1, ...res.map(x => x.points));
+      const announced = r.announced !== false;
+      if (!announced && !V.isAdmin) {
+        head.innerHTML = `<h2>Voting is closed</h2><p class="muted">${r.ballotCount || 0} ballot${r.ballotCount === 1 ? "" : "s"} counted. The pick will be announced soon.</p>`;
+        list.innerHTML = ""; admin.innerHTML = "";
+      } else {
       const tie = res.length > 1 && res[0].points === res[1].points && res[0].firsts === res[1].firsts;
       const onShelf = !!(r.chosenTitle || r.shelfBookId);
       const winner = !tie && res[0];
-      head.innerHTML = `<h2>${winner ? `The club picked <em>${esc(winner.title)}</em>` : "Voting closed: it's a tie"}</h2><p class="muted">${r.ballotCount || 0} ballot${r.ballotCount === 1 ? "" : "s"} · ${r.picks > 1 ? `ranked, ${Array.from({ length: r.picks }, (_, i) => r.picks - i).join("/")} points` : "one pick each"}${winner ? (onShelf ? " · Set as the next meeting's book." : "") : V.isAdmin ? " · Choose which tied book to read." : " · The organiser will choose between the tied books."}</p>`;
-      list.innerHTML = `<details class="past"${tie ? " open" : ""}><summary>Full results</summary><ol class="results" style="margin-top:8px">${res.map((x, i) => `<li class="res${i === 0 && !tie ? " win" : ""}">
+      const pk = r.pick;
+      head.innerHTML = `<h2>${!announced ? (pk ? `The pick: <em>${esc(pk.title)}</em>` : "Voting closed: it's a tie") : winner || pk ? `The club picked <em>${esc((pk || winner).title)}</em>` : "Voting closed: it's a tie"}</h2><p class="muted">${r.ballotCount || 0} ballot${r.ballotCount === 1 ? "" : "s"} · ${r.picks > 1 ? `ranked, ${Array.from({ length: r.picks }, (_, i) => r.picks - i).join("/")} points` : "one pick each"}${!announced ? " · Only you can see this until you announce it." : (winner || pk) ? (onShelf ? " · Set as the next meeting's book." : "") : ""}${!pk && !winner && V.isAdmin && !announced ? " Choose which tied book to read." : ""}</p>`
+        + (!announced && pk ? `<div class="pick-box">${coverHTML({ title: pk.title, author: pk.author, coverId: pk.coverId })}<div class="pk-body"><span class="eyebrow">Picked book</span><span class="pk-title">${esc(pk.title)}</span><span class="pk-meta">${[pk.author, pk.readOn ? "Read " + MONTH_NAMES[+pk.readOn.slice(5) - 1] + " " + pk.readOn.slice(0, 4) : "", pk.pickedBy ? "Picked by " + pk.pickedBy : ""].filter(Boolean).map(esc).join(" · ")}</span>
+            <div class="pk-act"><button class="btn ghost" type="button" data-vact="pick-edit">Edit book</button>${V.confirm === "announce" ? `<button class="btn" type="button" data-vact="announce-yes">Yes, announce it</button><button class="btn ghost" type="button" data-vact="cancel">Not yet</button>` : `<button class="btn" type="button" data-vact="announce">Announce to the club</button>`}</div></div></div>` : "");
+      list.innerHTML = `<details class="past"${tie && !pk ? " open" : ""}><summary>Full results</summary><ol class="results" style="margin-top:8px">${res.map((x, i) => `<li class="res${i === 0 && !tie ? " win" : ""}">
           <span class="res-pos">${i + 1}</span>
           <div class="res-main"><span class="res-title">${esc(x.title)}</span>${x.author ? `<span class="sg-meta">${esc(x.author)}${x.pages ? ` · ${esc(x.pages)} pages` : ""}</span>` : ""}
             <span class="res-bar"><span style="width:${(x.points / max) * 100}%"></span></span>
             <span class="res-sub">${x.points} pt${x.points === 1 ? "" : "s"} · ${x.firsts} first-choice · on ${x.voters} ballot${x.voters === 1 ? "" : "s"}</span></div>
-          ${V.isAdmin && canAct && !onShelf && (i === 0 || tie && x.points === res[0].points && x.firsts === res[0].firsts) ? `<button class="btn ghost" type="button" data-vact="shelve" data-i="${i}">Choose this book</button>` : ""}
+          ${V.isAdmin && canAct && !announced && !(pk && pk.title === x.title) && (i === 0 || tie && x.points === res[0].points && x.firsts === res[0].firsts) ? `<button class="btn ghost" type="button" data-vact="shelve" data-i="${i}">${pk ? "Pick this instead" : "Choose this book"}</button>` : ""}
         </li>`).join("")}</ol></details>`;
-      admin.innerHTML = V.isAdmin ? (V.startMode ? "" : `<button class="btn ghost" type="button" data-vact="start">Start the submission process</button>`) : "";
+      admin.innerHTML = V.isAdmin && announced ? (V.startMode ? "" : `<button class="btn ghost" type="button" data-vact="start">Start the submission process</button>`) : "";
+      }
     }
     const past = V.rounds.filter(x => x.phase === "closed" && (!r || x.id !== r.id)).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0));
     hist.innerHTML = past.length ? `<details class="past"><summary>Past rounds (${past.length})</summary><ul>${past.map(x => { const w = (x.results || [])[0]; const d = new Date(x.closedAt || x.createdAt || 0); return `<li><span class="muted">${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getFullYear()}</span> ${w ? `<b>${esc(w.title)}</b> won with ${w.points} pts` : "No votes"}</li>`; }).join("")}</ul></details>` : "";
@@ -1241,11 +1300,19 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   // Put the winning book on the shelf and make it the next meeting's book.
   // The vote winner becomes the next meeting's book. It goes on the shelf only after the discussion,
   // when the organizer taps "Discussion done" on the Next meeting card.
-  async function chooseWinner(r, x) {
-    const next = { ...(state.next || {}), bookId: "", pending: { title: x.title, author: x.author || "", roundId: r.id }, updatedAt: Date.now() };
+  // A closed vote's pick stays private to the organizer (round.pick) until it's announced.
+  function pickFrom(r, x) {
+    const sg = roundSugs(r).find(y => y.id === x.id) || {};
+    const n = state.next || {};
+    return { title: x.title, author: x.author || "", pages: x.pages || sg.pages || "", description: sg.description || "",
+      readOn: /^\d{4}-\d{2}/.test(n.date || "") ? n.date.slice(0, 7) : "", pickedBy: "", coverId: "", goodreads: "" };
+  }
+  async function announcePick(r) {
+    if (!r.pick) return;
+    const next = { ...(state.next || {}), bookId: "", pending: { ...r.pick, roundId: r.id }, updatedAt: Date.now() };
     state.next = next; renderNext();
-    await guard(() => state.db.doc("club/next").set(next));
-    await guard(() => state.db.doc("rounds/" + r.id).update({ chosenTitle: x.title }));
+    if (await guard(() => state.db.doc("club/next").set(next)))
+      await guard(() => state.db.doc("rounds/" + r.id).update({ announced: true, chosenTitle: r.pick.title }));
   }
 
   async function voteAction(act, t) {
@@ -1294,12 +1361,16 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     if (act === "close-yes") {
       V.confirm = null;
       const t2 = tally(r), res = t2.list;
-      const ok = await guard(() => state.db.doc("rounds/" + r.id).update({ phase: "closed", results: res, ballotCount: t2.ballotCount, closedAt: Date.now() }));
       const tie = res.length > 1 && res[0].points === res[1].points && res[0].firsts === res[1].firsts;
-      if (ok && res.length && !tie) await chooseWinner(r, res[0]);
+      const update = { phase: "closed", results: res, ballotCount: t2.ballotCount, closedAt: Date.now(), announced: false };
+      if (res.length && !tie) update.pick = pickFrom(r, res[0]);
+      await guard(() => state.db.doc("rounds/" + r.id).update(update));
       return;
     }
-    if (act === "shelve") { const x = (r.results || [])[+t.dataset.i]; if (x) await chooseWinner(r, x); }
+    if (act === "shelve") { const x = (r.results || [])[+t.dataset.i]; if (x) await guard(() => state.db.doc("rounds/" + r.id).update({ pick: pickFrom(r, x) })); }
+    if (act === "pick-edit") { if (r.pick) openEditor({ kind: "pick", rid: r.id }, r.pick); }
+    if (act === "announce") { V.confirm = "announce"; return renderVote(); }
+    if (act === "announce-yes") { V.confirm = null; await announcePick(r); }
   }
 
   $("startForm").addEventListener("submit", async e => {
@@ -1346,11 +1417,11 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const card = $("nextCard"), n = state.next || {};
     card.hidden = state.editingNext;
     const book = (n.bookId && state.books.find(b => b.id === n.bookId))
-      || (n.pending && n.pending.title ? { title: n.pending.title, author: n.pending.author || "", pending: true } : null);
+      || (n.pending && n.pending.title ? { title: n.pending.title, author: n.pending.author || "", coverId: n.pending.coverId || "", pending: true } : null);
     const canPlan = canEditShelf() && V.isAdmin;
     const doneBtn = canPlan && book ? (state.confirmDone
       ? `<div class="done-row"><span>Add <b>${esc(book.title)}</b> to the shelf and clear the next meeting? The vote section resets for a new round.</span><button class="btn" type="button" id="nDoneYes">Add to shelf</button><button class="btn ghost" type="button" id="nDoneNo">Not yet</button></div>`
-      : `<div class="done-row"><button class="btn ghost" type="button" id="nDone">Discussion done – add to shelf</button></div>`) : "";
+      : `<div class="done-row">${n.pending && !n.bookId ? `<button class="link-btn" type="button" id="nBookEdit">Edit book</button>` : ""}<button class="btn ghost" type="button" id="nDone">Discussion done – add to shelf</button></div>`) : "";
     const editBtn = canPlan ? `<button class="link-btn" type="button" id="nEdit">Edit</button>` : "";
     card.classList.remove("featured");
     if (!n.date && !book && !n.host && !n.where) {
@@ -1409,6 +1480,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   // After the meeting: the book goes on the shelf, the card clears and the vote section resets.
   document.addEventListener("click", async e => {
     const id = e.target.id;
+    if (id === "nBookEdit") { const n = state.next || {}; if (n.pending) openEditor({ kind: "pending" }, n.pending); return; }
     if (id === "nDone") { state.confirmDone = true; renderNext(); return; }
     if (id === "nDoneNo") { state.confirmDone = false; renderNext(); return; }
     if (id !== "nDoneYes") return;
@@ -1416,7 +1488,10 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const n = state.next || {};
     const month = /^\d{4}-\d{2}/.test(n.date || "") ? n.date.slice(0, 7) : new Date().toISOString().slice(0, 7);
     if (!n.bookId && n.pending && n.pending.title) {
-      const ok = await guard(() => state.db.collection("books").doc().set({ title: n.pending.title, author: n.pending.author || "", readOn: month, pickedBy: "", ratings: {}, createdAt: Date.now() }));
+      const pd = n.pending, book = { title: pd.title, author: pd.author || "", readOn: pd.readOn || month, pickedBy: pd.pickedBy || "", ratings: {}, createdAt: Date.now() };
+      if (pd.coverId) book.coverId = pd.coverId;
+      if (pd.goodreads) book.goodreads = { url: pd.goodreads };
+      const ok = await guard(() => state.db.collection("books").doc().set(book));
       if (!ok) return;
     }
     state.next = {}; renderNext();
@@ -1494,7 +1569,58 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   $("sheet").addEventListener("click", e => { if (e.target.closest("[data-close]")) closeSheet(); const t = e.target.closest("[data-tab]"); if (t) showTab(t.dataset.tab); });
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
-    if (!$("menuList").hidden) closeMenu(true); else if (!$("lightbox").hidden) closeLightbox(); else if (!$("sheet").hidden) closeSheet();
+    if (!$("menuList").hidden) closeMenu(true); else if (!$("bookEditor").hidden) closeEditor(); else if (!$("lightbox").hidden) closeLightbox(); else if (!$("sheet").hidden) closeSheet();
+  });
+
+  // Book editor: shelf books, the private pick, and the announced (pending) next book share one form
+  const ED = { target: null, coverId: "" };
+  function drawEditorCover() {
+    $("edCoverArt").innerHTML = coverHTML({ title: $("edTitle").value || "Untitled", author: $("edAuthor").value, coverId: ED.coverId });
+    $("edCoverBtn").textContent = ED.coverId ? "Replace cover" : "Upload cover";
+    $("edCoverRemove").hidden = !ED.coverId;
+  }
+  function openEditor(target, b) {
+    ED.target = target; ED.coverId = b.coverId || "";
+    $("edHead").textContent = target.kind === "shelf" ? "Edit book" : "Edit the picked book";
+    $("edTitle").value = b.title || ""; $("edAuthor").value = b.author || ""; $("edMonth").value = b.readOn || "";
+    const names = state.settings.members.slice(); if (b.pickedBy && !names.includes(b.pickedBy)) names.push(b.pickedBy);
+    $("edPicked").innerHTML = `<option value="">Nobody in particular</option>` + names.map(m => `<option>${esc(m)}</option>`).join("");
+    $("edPicked").value = b.pickedBy || "";
+    const gr = typeof b.goodreads === "string" ? b.goodreads : (b.goodreads && b.goodreads.url) || "";
+    $("edGr").value = gr;
+    $("edCoverBtn").hidden = !state.assets;
+    drawEditorCover();
+    $("bookEditor").hidden = false; document.documentElement.style.overflow = "hidden";
+    $("edTitle").focus();
+  }
+  function closeEditor() { $("bookEditor").hidden = true; ED.target = null; if ($("sheet").hidden && $("lightbox").hidden) document.documentElement.style.overflow = ""; }
+  $("bookEditor").addEventListener("click", e => { if (e.target.closest("[data-ed-close]")) closeEditor(); });
+  $("edTitle").addEventListener("input", () => { if (!ED.coverId) drawEditorCover(); });
+  $("edCoverBtn").addEventListener("click", () => { state.coverFor = "__editor"; $("coverInput").click(); });
+  $("edCoverRemove").addEventListener("click", () => { ED.coverId = ""; drawEditorCover(); });
+  $("edForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const t = ED.target; if (!t) return;
+    const grRaw = $("edGr").value.trim();
+    const gr = /^https:\/\/(www\.)?goodreads\.com\//.test(grRaw) ? grRaw : "";
+    if (grRaw && !gr) { notice("The Goodreads link should start with https://www.goodreads.com/", true); return; }
+    const f = { title: $("edTitle").value.trim(), author: $("edAuthor").value.trim(), readOn: $("edMonth").value || "", pickedBy: $("edPicked").value || "", coverId: ED.coverId || "" };
+    if (!f.title) return;
+    closeEditor();
+    if (t.kind === "shelf") {
+      const cur = state.books.find(x => x.id === t.id) || {};
+      const data = { ...cur, ...f, goodreads: gr ? { url: gr } : null };
+      delete data.id; if (!data.coverId) data.coverId = null;
+      await guard(() => state.db.doc("books/" + t.id).set(data));
+    } else if (t.kind === "pick") {
+      const r = V.rounds.find(x => x.id === t.rid);
+      await guard(() => state.db.doc("rounds/" + t.rid).update({ pick: { ...(r && r.pick || {}), ...f, goodreads: gr } }));
+    } else if (t.kind === "pending") {
+      const n = state.next || {};
+      const next = { ...n, pending: { ...(n.pending || {}), ...f, goodreads: gr }, updatedAt: Date.now() };
+      state.next = next; renderNext();
+      await guard(() => state.db.doc("club/next").set(next));
+    }
   });
 
   // Cover lightbox
