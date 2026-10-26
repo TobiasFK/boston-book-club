@@ -446,6 +446,8 @@ textarea { font: inherit; color: inherit; background: var(--surface); border: 1p
 .past-round summary .win { font-weight: 700; }
 .past-round summary .meta { font-size: 13px; color: var(--muted); width: 100%; }
 .past-round .results { margin-top: 10px; }
+.review { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.review-head { display: flex; justify-content: space-between; align-items: baseline; }
 .sealed { display: flex; flex-direction: column; gap: 2px; border: 1.5px dashed var(--line); border-radius: 10px; padding: 14px 16px; text-align: center; }
 .sealed strong { font-family: var(--display); font-size: 17px; font-weight: 600; }
 .sealed span { color: var(--muted); font-size: 14px; }
@@ -732,7 +734,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
 
   function avgFor(book) {
     const r = book.ratings || {};
-    const vals = state.settings.members.map(m => r[m]).filter(v => typeof v === "number");
+    const vals = state.settings.members.filter(m => !beforeJoin(m, book)).map(m => r[m]).filter(v => typeof v === "number");
     if (!vals.length) return { avg: null, n: 0 };
     return { avg: vals.reduce((a, b) => a + b, 0) / vals.length, n: vals.length };
   }
@@ -768,6 +770,13 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     return Array.isArray(p) && p.length ? p : [{ from: "", to: "" }];
   }
   const idxOf = (id) => chronoIdx.has(id) ? chronoIdx.get(id) : null;
+  // Before a member's "Member since" book they weren't in the club: hide them there entirely, ratings included.
+  function beforeJoin(m, book) {
+    const p = periodsOf(m)[0];
+    if (!p || !p.from) return false;
+    const f = idxOf(p.from), i = idxOf(book.id);
+    return f != null && i != null && i < f;
+  }
   function inClubFor(m, book) {
     const i = idxOf(book.id);
     return periodsOf(m).some(p => {
@@ -823,7 +832,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const members = state.settings.members;
     const books = state.books.map(b => {
       const r = b.ratings || {};
-      const vals = members.filter(m => typeof r[m] === "number").map(m => ({ m, v: r[m] }));
+      const vals = members.filter(m => typeof r[m] === "number" && !beforeJoin(m, b)).map(m => ({ m, v: r[m] }));
       return { b, vals, avg: vals.length ? mean(vals.map(x => x.v)) : null, sd: vals.length >= 3 ? sd(vals.map(x => x.v)) : null };
     });
     const all = books.flatMap(x => x.vals.map(y => ({ ...y, book: x })));
@@ -918,7 +927,9 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     return best;
   }
 
+  const editingSelectIn = (el) => { const a = document.activeElement; return !!(a && a.tagName === "SELECT" && el && el.contains(a)); };
   function renderMembers() {
+    if (editingSelectIn($("chips"))) return;
     const members = state.settings.members;
     const active = activeMembers(), inactive = members.filter(isInactive);
     $("memberCount").textContent = members.length ? String(active.length) : "";
@@ -983,7 +994,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     document.querySelectorAll(".seg[data-sort]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.sort === state.sort)));
 
     const shelf = $("shelf");
-    if (!state.ready) return;
+    if (!state.ready || editingSelectIn(shelf)) return;
     if (!state.books.length) {
       if (V.isAdmin) { shelf.innerHTML = `<div class="empty-state"><strong>The shelf is empty</strong><span>Bring over everything from the Claude version: books, ratings, members and covers.</span><button class="btn" type="button" id="importBtn">Import the shelf</button></div>`; return; }
       shelf.innerHTML = `<div class="empty-state"><strong>No books on the shelf yet</strong><span>${canEditShelf() ? (members.length ? "Use “Add a book” above to log your first read." : "Add your members first, then log your first book above.") : "Books will show up here once the club adds them."}</span></div>`;
@@ -993,7 +1004,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       const { avg, n } = avgFor(book);
       const r = book.ratings || {};
       const locked = !canEditShelf();
-      const shown = members.filter(m => typeof r[m] === "number" || inClubFor(m, book));
+      const shown = members.filter(m => !beforeJoin(m, book) && (typeof r[m] === "number" || inClubFor(m, book)));
       const cells = shown.map(m => {
         const v = typeof r[m] === "number" ? r[m] : null;
         const opts = `<option value="">Not rated</option>` + STEPS.map(s => `<option value="${s}"${v === s ? " selected" : ""}>${s} ★</option>`).join("");
@@ -1184,6 +1195,16 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   // Suggestions live under their round. While a round is collecting suggestions the rules keep them sealed,
   // so members' listener is refused; re-subscribe whenever the round or its phase changes.
   let sugKey = null, sugUnsub = null, tallyUnsub = null;
+  // If the organizer removed one of my suggestions, forget it so I can suggest another.
+  function pruneRemoved(r) {
+    if (V.isAdmin || !Array.isArray(V.tallyIds) || V.pruning) return;
+    const rec = myRec(r), now = Date.now();
+    const gone = rec.suggestions.filter(id => !V.tallyIds.includes(id) && now - (((rec.items || []).find(x => x.id === id) || {}).at || 0) > 15000);
+    if (!gone.length) return;
+    V.pruning = true;
+    V.mine[r.id] = { ...rec, suggestions: rec.suggestions.filter(id => !gone.includes(id)), items: (rec.items || []).filter(x => !gone.includes(x.id)) };
+    guard(() => saveMine(r.id)).finally(() => { V.pruning = false; renderVote(); });
+  }
   // Organizer only: add count markers for any suggestion saved without one (e.g. from an older cached page).
   let healing = false;
   async function healTally(r) {
@@ -1293,10 +1314,16 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       const sugs = roundSugs(r);
       head.innerHTML = `<h2>Next book: suggestions</h2>${themeHTML}<p class="muted">Suggest up to ${MAX_SUGGESTIONS} books. Suggestions are anonymous and stay sealed until voting opens, so nobody sees the list before then. ${canAct ? (left > 0 ? `You have ${left} left.` : "You've used both of yours.") : ""}</p>`;
       $("sgSubmit").disabled = left <= 0;
+      pruneRemoved(r);
       const ownItems = (myRec(r).items || []).filter(x => myRec(r).suggestions.includes(x.id));
       const n = V.sugCount != null ? V.sugCount : sugs.length;
       const sealedNote = `<div class="sealed"><strong>${n} book${n === 1 ? "" : "s"} suggested so far</strong><span>${V.isAdmin ? "Titles stay hidden until you open voting." : "You'll see every suggested book when voting opens."}</span></div>`;
-      list.innerHTML = sealedNote + (ownItems.length ? `<p class="sub-head">Your suggestions</p><div class="sg-list">${ownItems.map(s => {
+      const review = V.isAdmin && canAct ? (V.reviewSugs
+        ? `<div class="review"><div class="review-head"><strong>All suggestions</strong><button class="link-btn quiet" type="button" data-vact="review-off">Hide</button></div>
+            <p class="muted">Only organizers can see this. Remove duplicates or anything that doesn't fit the theme.</p>
+            ${sugs.length ? `<div class="sg-list">${sugs.map(x => sugCard(x, r, { side: `<div class="sg-side">${V.confirm === "del:" + x.id ? `<button class="link-btn danger-link" type="button" data-vact="del-yes" data-id="${esc(x.id)}">Confirm remove</button><button class="link-btn quiet" type="button" data-vact="cancel">Keep</button>` : `<button class="link-btn quiet" type="button" data-vact="del" data-id="${esc(x.id)}">Remove</button>`}</div>` })).join("")}</div>` : `<p class="muted">No suggestions yet.</p>`}</div>`
+        : `<button class="link-btn" type="button" data-vact="review-on">Review suggestions (organizers only)</button>`) : "";
+      list.innerHTML = sealedNote + review + (ownItems.length ? `<p class="sub-head">Your suggestions</p><div class="sg-list">${ownItems.map(s => {
         const mine = true;
         const side = (mine || V.isAdmin) && canAct ? `<div class="sg-side">${V.confirm === "del:" + s.id ? `<button class="link-btn danger-link" type="button" data-vact="del-yes" data-id="${esc(s.id)}">Confirm remove</button><button class="link-btn quiet" type="button" data-vact="cancel">Keep</button>` : `<button class="link-btn quiet" type="button" data-vact="del" data-id="${esc(s.id)}">Remove</button>`}</div>` : "";
         return sugCard(s, r, { side });
@@ -1375,6 +1402,8 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   async function voteAction(act, t) {
     const r = currentRound();
     if (act === "cancel") { V.confirm = null; return renderVote(); }
+    if (act === "review-on") { V.reviewSugs = true; return renderVote(); }
+    if (act === "review-off") { V.reviewSugs = false; V.confirm = null; return renderVote(); }
     if (act === "start") { if (r && r.phase !== "closed") return; V.startMode = "new"; ["stTheme", "stWhen", "stWhere"].forEach(id => $(id).value = ""); renderVote(); $("stTheme").focus(); return; }
     if (act === "cancel-round") { V.confirm = "cancel-round"; return renderVote(); }
     if (act === "cancel-round-yes") {
@@ -1455,7 +1484,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       { op: "set", path: "rounds/" + r.id + "/tally/" + ref.id, data: { at: Date.now() } }
     ]));
     if (ok) {
-      V.mine[r.id] = { ...rec, suggestions: [...rec.suggestions, ref.id], items: [...(rec.items || []), { id: ref.id, title: doc.title, author: doc.author, pages: doc.pages, description: doc.description }] };
+      V.mine[r.id] = { ...rec, suggestions: [...rec.suggestions, ref.id], items: [...(rec.items || []), { id: ref.id, at: Date.now(), title: doc.title, author: doc.author, pages: doc.pages, description: doc.description }] };
       await guard(() => saveMine(r.id));
       ["sgTitle", "sgAuthor", "sgPages", "sgDesc"].forEach(id => $(id).value = "");
       V.sgOpen = false; V.flash = "Your suggestion is in, anonymously."; clearTimeout(V.flashT); V.flashT = setTimeout(() => { V.flash = ""; renderVote(); }, 6000);
