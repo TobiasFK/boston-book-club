@@ -1079,6 +1079,16 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   // Suggestions live under their round. While a round is collecting suggestions the rules keep them sealed,
   // so members' listener is refused; re-subscribe whenever the round or its phase changes.
   let sugKey = null, sugUnsub = null, tallyUnsub = null;
+  // Organizer only: add count markers for any suggestion saved without one (e.g. from an older cached page).
+  let healing = false;
+  async function healTally(r) {
+    if (!V.isAdmin || healing || r.phase !== "suggest" || !Array.isArray(V.tallyIds)) return;
+    const missing = V.suggestions.filter(x => !V.tallyIds.includes(x.id));
+    if (!missing.length) return;
+    healing = true;
+    try { await state.db.batch(missing.map(x => ({ op: "set", path: "rounds/" + r.id + "/tally/" + x.id, data: { at: Date.now() } }))); }
+    catch (e) {} finally { healing = false; }
+  }
   function syncSuggestions() {
     if (!state.db) return;
     const r = currentRound();
@@ -1086,13 +1096,13 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     if (key === sugKey) return;
     sugKey = key; if (sugUnsub) { sugUnsub(); sugUnsub = null; }
     if (tallyUnsub) { tallyUnsub(); tallyUnsub = null; }
-    V.suggestions = []; V.sealed = false; V.sugCount = null;
+    V.suggestions = []; V.sealed = false; V.sugCount = null; V.tallyIds = null;
     if (!r) return;
     // Everyone can see how many books are in (tally markers carry no details).
-    tallyUnsub = state.db.collection("rounds/" + r.id + "/tally").onSnapshot(snap => { V.sugCount = snap.docs.length; renderVote(); }, () => {});
+    tallyUnsub = state.db.collection("rounds/" + r.id + "/tally").onSnapshot(snap => { V.tallyIds = snap.docs.map(d => d.id); V.sugCount = V.tallyIds.length; healTally(r); renderVote(); }, () => {});
     if (r.phase === "suggest" && !V.isAdmin) { V.sealed = true; return; }
     sugUnsub = state.db.collection("rounds/" + r.id + "/suggestions").onSnapshot(
-      snap => { V.suggestions = snap.docs.map(d => ({ id: d.id, roundId: r.id, ...d.data() })); renderVote(); },
+      snap => { V.suggestions = snap.docs.map(d => ({ id: d.id, roundId: r.id, ...d.data() })); healTally(r); renderVote(); },
       () => { V.sealed = true; renderVote(); });
   }
   const roundSugs = (r) => V.suggestions.filter(x => x.roundId === r.id).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
