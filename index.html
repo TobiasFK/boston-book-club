@@ -443,6 +443,17 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   .card { transition: border-color .15s; }
 }
 
+.gate { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); }
+.gate-card { width: min(380px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 10px; }
+.gate-card h1 { font-size: 30px; line-height: 1.05; }
+.gate-card p { margin: 0; color: var(--muted); }
+.gate-card label { font-size: 13px; color: var(--muted); margin-top: 6px; }
+.gate-card input { font: inherit; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+.gate-card .btn { padding: 11px 16px; }
+.gate-card .link-btn { align-self: center; font-size: 13px; }
+.gate-err { color: var(--danger) !important; font-size: 14px; }
+.pw-box { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
+.pw-box h3 { font-size: 16px; font-weight: 600; }
 .site-foot { max-width: 780px; margin: 0 auto; padding: 8px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
 </style>
 
@@ -534,6 +545,18 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
 
 <footer class="site-foot" id="siteFoot"><span id="footWho"></span><button class="link-btn quiet" type="button" id="footAuth">Organizer sign in</button></footer>
 
+<div class="gate" id="gate" hidden>
+  <form class="gate-card" id="gateForm">
+    <h1>Boston Book Club</h1>
+    <p>Enter the club password to see the shelf. You only need to do this once on this device.</p>
+    <label for="gatePw">Club password</label>
+    <input type="password" id="gatePw" autocomplete="current-password" required>
+    <p class="gate-err" id="gateErr" hidden>That's not the club password. Check with the organizer.</p>
+    <button class="btn" type="submit" id="gateBtn">Enter</button>
+    <button class="link-btn quiet" type="button" id="gateOrg">Organizer sign in</button>
+  </form>
+</div>
+
 <div class="sheet" id="sheet" hidden>
   <div class="sheet-backdrop" data-close></div>
   <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="Club menu">
@@ -556,6 +579,14 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       <section class="drawer" id="membersPanel" role="tabpanel" aria-labelledby="tabMembers" hidden>
         <div class="drawer-head"><h2 id="membersHead">Members</h2><button class="link-btn write-only" id="reorderBtn" type="button">Edit</button></div>
         <div id="chips"></div>
+        <div class="pw-box write-only" id="pwBox">
+          <h3>Club password</h3>
+          <p class="muted">Members enter this once per device. Changing it signs everyone out until they enter the new one.</p>
+          <form class="inline-form" id="pwForm">
+            <input type="text" id="pwInput" maxlength="60" placeholder="Set a club password" aria-label="Club password" autocomplete="off">
+            <button class="btn" type="submit">Save password</button>
+          </form>
+        </div>
         <form class="inline-form write-only" id="memberForm">
           <input type="text" id="memberInput" maxlength="40" placeholder="Add a member's name" aria-label="Member name">
           <button class="btn" type="submit">Add member</button>
@@ -1451,6 +1482,32 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     }
   });
 
+  // Club password gate
+  function showGate() {
+    $("gate").hidden = false; document.querySelector(".wrap").hidden = true; $("siteFoot").hidden = true;
+    setTimeout(() => $("gatePw").focus(), 50);
+  }
+  $("gateForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    $("gateBtn").disabled = true; $("gateErr").hidden = true;
+    const ok = await window.bbc.join($("gatePw").value).catch(() => false);
+    if (ok) { location.reload(); return; }
+    $("gateErr").hidden = false; $("gateBtn").disabled = false; $("gatePw").select();
+  });
+  $("gateOrg").addEventListener("click", () => window.bbc.signIn().catch(() => {}));
+  $("pwForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const pw = $("pwInput").value.trim();
+    if (pw.length < 4) { notice("Use at least 4 characters for the club password.", true); return; }
+    try { await window.bbc.setPassword(pw); notice("Club password saved. Share it with the club."); }
+    catch (err) { notice("Couldn't save the password. Make sure you're signed in as organizer.", true); }
+  });
+  (async () => {
+    if (!window.bbc) return;
+    const me = await window.bbc.whoAmI().catch(() => null);
+    if (me && me.organizer) { const pw = await window.bbc.getPassword(); if (pw != null) { $("pwInput").value = pw; if (!pw) notice("No club password is set yet. Set one under Menu → Members so members can get in."); } }
+  })();
+
   render();
 
   (async () => {
@@ -1462,6 +1519,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       render(); return;
     }
     state.db = db;
+    if (window.bbc && !(await window.bbc.canRead().catch(() => true))) { showGate(); return; }
     const user = await window.claude.use("user");
     if (user) { const can = await user.can("data.write"); if (can === false) state.canWrite = false; }
     db.doc("club/next").onSnapshot(snap => { state.next = snap.exists ? snap.data() : null; renderNext(); }, () => {});

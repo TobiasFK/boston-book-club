@@ -116,6 +116,31 @@
     return writes.length;
   }
 
+  // Club password: members unlock the site once per device.
+  async function canRead() {
+    const F = await ready;
+    try { await F.fs.getDoc(F.fs.doc(F.db, "club/settings")); return true; }
+    catch (e) { if (e && e.code === "permission-denied") return false; throw e; }
+  }
+  async function join(password) {
+    const F = await ready;
+    try {
+      await F.fs.setDoc(F.fs.doc(F.db, "access/" + F.auth.currentUser.uid), { key: String(password), at: Date.now() });
+      return true;
+    } catch (e) { if (e && e.code === "permission-denied") return false; throw e; }
+  }
+  async function getPassword() {
+    const F = await ready;
+    try { const s = await F.fs.getDoc(F.fs.doc(F.db, "secrets/club")); return s.exists() ? s.data().password || "" : ""; }
+    catch (e) { return null; }
+  }
+  async function setPassword(password) {
+    const F = await ready;
+    await F.fs.setDoc(F.fs.doc(F.db, "secrets/club"), { password: String(password), updatedAt: Date.now() });
+    // Keep the organizer's own device unlocked too.
+    await F.fs.setDoc(F.fs.doc(F.db, "access/" + F.auth.currentUser.uid), { key: String(password), at: Date.now() });
+  }
+
   window.claude = { use };
-  window.bbc = { signIn, signOut, whoAmI, importShelf };
+  window.bbc = { signIn, signOut, whoAmI, importShelf, canRead, join, getPassword, setPassword };
 })();

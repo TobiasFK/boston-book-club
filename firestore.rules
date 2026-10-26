@@ -1,0 +1,84 @@
+rules_version = '2';
+// Boston Book Club: who can read and write what.
+// Reading anything requires the club password (entered once per device) or the organizer account.
+// Changing the password locks every device out until it is entered again.
+// Members can rate books, suggest books and cast one ballot per round.
+// Only the organizer account can change club info, books, covers, members and vote rounds.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function secret() { return /databases/$(database)/documents/secrets/club; }
+    function access() { return /databases/$(database)/documents/access/$(request.auth.uid); }
+    function member() {
+      return signedIn() && exists(secret()) && exists(access())
+        && get(access()).data.key == get(secret()).data.password;
+    }
+    function inClub() { return organizer() || member(); }
+    function organizer() {
+      return signedIn() && request.auth.token.get('email_verified', false) == true
+        && request.auth.token.get('email', '').lower() in ['tobias.fabricius@gmail.com'];
+    }
+    // Each person's private record for a round: which suggestions and ballot are theirs.
+    function mine(rid) { return /databases/$(database)/documents/data/users/$(request.auth.uid)/$('vote-' + rid); }
+    function myRecord(rid) { return exists(mine(rid)) ? get(mine(rid)).data : {}; }
+    function phase(rid) { return get(/databases/$(database)/documents/rounds/$(rid)).data.phase; }
+
+    match /club/{doc} {
+      allow read: if inClub();
+      allow write: if organizer();
+    }
+    match /covers/{id} {
+      allow read: if inClub();
+      allow write: if organizer();
+    }
+    match /rounds/{id} {
+      allow read: if inClub();
+      allow write: if organizer();
+    }
+    match /books/{id} {
+      allow read: if inClub();
+      allow create, delete: if organizer();
+      allow update: if organizer()
+        || (member() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ratings']));
+    }
+    match /suggestions/{id} {
+      allow read: if inClub();
+      allow create: if inClub()
+        && request.resource.data.keys().hasOnly(['roundId', 'title', 'author', 'pages', 'description', 'createdAt'])
+        && request.resource.data.title is string && request.resource.data.title.size() <= 140
+        && phase(request.resource.data.roundId) == 'suggest'
+        && myRecord(request.resource.data.roundId).get('suggestions', []).size() < 2;
+      allow delete: if organizer()
+        || (inClub() && myRecord(resource.data.roundId).get('suggestions', []).hasAny([id]));
+    }
+    match /ballots/{id} {
+      allow read: if inClub();
+      allow create: if inClub()
+        && request.resource.data.keys().hasOnly(['roundId', 'picks'])
+        && phase(request.resource.data.roundId) == 'vote'
+        && myRecord(request.resource.data.roundId).get('ballotId', null) == null;
+      allow update: if inClub()
+        && request.resource.data.keys().hasOnly(['roundId', 'picks'])
+        && request.resource.data.roundId == resource.data.roundId
+        && phase(resource.data.roundId) == 'vote'
+        && myRecord(resource.data.roundId).get('ballotId', null) == id;
+      allow delete: if organizer();
+    }
+    // The club password: only the organizer can see or change it.
+    match /secrets/{doc} {
+      allow read, write: if organizer();
+    }
+    // A device's unlock record: written when someone enters the right password.
+    match /access/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['key', 'at'])
+        && exists(secret()) && request.resource.data.key == get(secret()).data.password;
+      allow delete: if organizer();
+    }
+    // Private per-person records; nobody else can read them.
+    match /data/users/{uid}/{doc} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+  }
+}
