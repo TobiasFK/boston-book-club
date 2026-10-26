@@ -77,7 +77,7 @@ h1 { font-size: clamp(34px, 8vw, 54px); font-weight: 800; line-height: 1; letter
 .hl-score b { color: var(--ink); font-size: 13px; }
 
 /* Next meeting card */
-.next { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 6px; }
+.next { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-top: 6px; }
 .next .cal { width: 64px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); text-align: center; background: var(--bg); flex-shrink: 0; }
 .next .cal .mo { display: block; background: var(--stamp); color: var(--surface); font-family: var(--mono); font-size: 11px; letter-spacing: .12em; padding: 3px 0; }
 .next .cal .dy { display: block; font-family: var(--display); font-weight: 800; font-size: 30px; line-height: 1.15; padding-top: 2px; font-variant-numeric: tabular-nums; }
@@ -101,26 +101,37 @@ h1 { font-size: clamp(34px, 8vw, 54px); font-weight: 800; line-height: 1; letter
 @media (max-width: 480px) { .next { gap: 12px; padding: 14px; } .next .cal { width: 56px; } .next-form { grid-template-columns: minmax(0, 1fr); } }
 
 
-/* Featured next meeting: book chosen + date set */
-.next.featured { grid-template-columns: 132px minmax(0, 1fr); gap: 20px; padding: 20px; border: 1.5px solid var(--star); background:
-  linear-gradient(135deg, color-mix(in srgb, var(--star) 14%, var(--surface)) 0%, var(--surface) 60%); position: relative; overflow: hidden; }
-.next.featured .feat-cover .cover { width: 132px; box-shadow: inset 4px 0 0 rgba(0,0,0,.18), 0 8px 22px rgba(0,0,0,.25); }
-.next.featured .feat-cover .cover.gen .gt { font-size: 15px; }
-.feat-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.feat-eyebrow { color: var(--stamp); font-weight: 600; }
-.feat-title { font-size: clamp(26px, 5.5vw, 38px); font-weight: 800; line-height: 1.05; letter-spacing: -.01em; overflow-wrap: anywhere; }
-.feat-author { color: var(--muted); font-size: 16px; }
-.feat-when { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; margin-top: 8px; }
-.feat-when .cal { width: 54px; }
-.feat-when .cal .dy { font-size: 24px; }
-.feat-count { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; }
-.feat-count .n { font-family: var(--display); font-weight: 800; font-size: 34px; line-height: 1; color: var(--star); font-variant-numeric: tabular-nums; }
-.feat-count span:last-child { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+/* Next meeting card */
+.next { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
+.nm-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.nm-book { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 16px; align-items: center; }
+.nm-book .cover { width: 96px; }
+.nm-book .cover.gen .gt { font-size: 12px; }
+.nm-bk { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.nm-badge { align-self: flex-start; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--stamp); background: color-mix(in srgb, var(--star) 18%, transparent); border-radius: 999px; padding: 3px 9px; }
+.nm-title { font-size: clamp(22px, 5vw, 32px); font-weight: 800; line-height: 1.08; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.nm-author { color: var(--muted); font-size: 15px; }
+.nm-when { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; border-top: 1px solid var(--line); padding-top: 14px; }
+.nm-when .cal { width: 52px; }
+.nm-when .cal .dy { font-size: 22px; }
+.nm-wt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.nm-wt .next-when { font-size: 16px; }
+.nm-place { font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+.nm-count { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.nm-count .n { font-family: var(--display); font-weight: 800; font-size: 30px; line-height: 1; color: var(--star); font-variant-numeric: tabular-nums; }
+.nm-count .l { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.nm-count.past .l { color: var(--stamp); max-width: 90px; }
+.next.featured { padding: 18px; border: 1.5px solid var(--star); background: linear-gradient(160deg, color-mix(in srgb, var(--star) 12%, var(--surface)) 0%, var(--surface) 55%); }
+.next.featured .nm-eyebrow { color: var(--stamp); font-weight: 600; }
+.next.featured .nm-book .cover { width: 112px; box-shadow: inset 4px 0 0 rgba(0,0,0,.18), 0 8px 20px rgba(0,0,0,.22); }
+.next.featured .nm-book { grid-template-columns: 112px minmax(0, 1fr); }
+.next .done-row { margin-top: 0; }
 @media (max-width: 480px) {
-  .next.featured { grid-template-columns: 96px minmax(0, 1fr); gap: 14px; padding: 16px; }
-  .next.featured .feat-cover .cover { width: 96px; }
-  .feat-when { grid-column: 1 / -1; }
-  .feat-count .n { font-size: 28px; }
+  .nm-book, .next.featured .nm-book { grid-template-columns: 84px minmax(0, 1fr); gap: 14px; }
+  .nm-book .cover, .next.featured .nm-book .cover { width: 84px; }
+  .nm-when { grid-template-columns: auto minmax(0, 1fr); }
+  .nm-count { grid-column: 1 / -1; flex-direction: row; align-items: baseline; gap: 8px; justify-content: flex-start; text-align: left; }
+  .nm-count .n { font-size: 24px; }
 }
 /* Drawers: stats, members, add book */
 .drawers { display: flex; flex-direction: column; gap: 10px; margin-top: -12px; }
@@ -418,6 +429,7 @@ textarea { font: inherit; color: inherit; background: var(--surface); border: 1p
 .pick-box .pk-act { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .done-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 6px; }
 .done-row span { flex: 1 1 220px; font-size: 14px; }
+.vote-flash { margin: 0; align-self: flex-start; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent); font-weight: 700; font-size: 14px; border-radius: 999px; padding: 6px 14px; }
 .sealed { display: flex; flex-direction: column; gap: 2px; border: 1.5px dashed var(--line); border-radius: 10px; padding: 14px 16px; text-align: center; }
 .sealed strong { font-family: var(--display); font-size: 17px; font-weight: 600; }
 .sealed span { color: var(--muted); font-size: 14px; }
@@ -508,8 +520,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       <div class="field"><label for="nDate">Date</label><input type="date" id="nDate"></div>
       <div class="field"><label for="nTime">Time</label><input type="time" id="nTime"></div>
       <div class="field full"><label for="nBook">Book</label><select class="plain" id="nBook"></select></div>
-      <div class="field"><label for="nHost">Host</label><input type="text" id="nHost" maxlength="60" list="nHostList" placeholder="Who's hosting"><datalist id="nHostList"></datalist></div>
-      <div class="field"><label for="nWhere">Where</label><input type="text" id="nWhere" maxlength="140" placeholder="Address or place"></div>
+      <div class="field full"><label for="nWhere">Host / place</label><input type="text" id="nWhere" maxlength="140" placeholder="e.g. At Mike's in Jamaica Plain, or Trident Booksellers"></div>
       <div class="full next-form-act"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" id="nCancel">Cancel</button></div>
     </form>
   </header>
@@ -526,6 +537,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       </div>
       <div class="next-form-act"><button class="btn" type="submit" id="stSubmit">Open suggestions</button><button class="btn ghost" type="button" id="stCancel">Cancel</button></div>
     </form>
+    <p class="vote-flash" id="voteFlash" role="status" hidden></p>
     <button class="btn" type="button" id="sgOpen" hidden>Suggest a book</button>
     <form class="book-form sg-form" id="suggestForm" hidden>
       <div class="field full"><label for="sgTitle">Title</label><input type="text" id="sgTitle" maxlength="140" required></div>
@@ -633,7 +645,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
         <div class="field"><label for="edAuthor">Author</label><input type="text" id="edAuthor" maxlength="100"></div>
         <div class="field"><label for="edMonth">Month we read it</label><input type="month" id="edMonth"></div>
         <div class="field"><label for="edPicked">Picked by</label><select class="plain" id="edPicked"></select></div>
-        <div class="field"><label for="edGr">Goodreads link (optional)</label><input type="url" id="edGr" maxlength="300" placeholder="https://www.goodreads.com/book/show/…"></div>
+        <div class="field" id="edGrField"><label for="edGr">Goodreads link (found automatically if left empty)</label><input type="url" id="edGr" maxlength="300" placeholder="https://www.goodreads.com/book/show/…"></div>
       </div>
     </div>
     <div class="next-form-act"><button class="btn" type="submit" id="edSave">Save</button><button class="btn ghost" type="button" data-ed-close>Cancel</button></div>
@@ -1044,7 +1056,8 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const book = { title, author: $("bAuthor").value.trim(), readOn: $("bMonth").value || "", pickedBy: $("bPicked").value || "", ratings: {}, createdAt: Date.now() };
     $("bTitle").value = ""; $("bAuthor").value = "";
     closeAdd();
-    guard(() => state.db.collection("books").add(book));
+    const ref = state.db.collection("books").doc();
+    guard(() => ref.set(book)).then(ok => { if (ok) addGoodreads(ref.id, book.title, book.author); });
   });
   $("coverInput").addEventListener("change", async () => {
     const file = $("coverInput").files[0];
@@ -1210,7 +1223,8 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const r = currentRound();
     const phase = r ? r.phase : "none";
     const stale = phase === "closed" && (r.archived || Date.now() - (r.closedAt || 0) > 21 * 86400000);
-    const quiet = phase === "none" || stale;
+    const announcedClosed = phase === "closed" && r.announced !== false;
+    const quiet = phase === "none" || stale || (announcedClosed && !V.isAdmin);
     $("votePanel").hidden = quiet && !V.isAdmin;
     $("votePanel").classList.toggle("quiet", quiet);
     // While suggestions or voting are open, the vote sits at the very top, above the next meeting.
@@ -1226,6 +1240,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const facts = r ? [["When", r.when], ["Where", r.where]].filter(x => x[1]) : [];
     const themeHTML = r && phase !== "none" && (r.theme || facts.length) ? `<div class="theme">${r.theme ? `<span class="st-k">Theme</span><strong>${esc(r.theme)}</strong>` : ""}${facts.length ? `<div class="theme-facts">${facts.map(([k, v]) => `<span><span class="st-k">${k}</span> ${esc(v)}</span>`).join("")}</div>` : ""}</div>` : "";
     const canAct = canEditShelf();
+    $("voteFlash").hidden = !V.flash; $("voteFlash").textContent = V.flash || "";
     const cancelBtn = `<button class="link-btn quiet" type="button" data-vact="cancel-round">Cancel round</button>`;
     const confirmBox = (key, text, label) => V.confirm === key
       ? `<div class="vconfirm"><span>${text}</span><button class="btn" type="button" data-vact="${key}-yes">${label}</button><button class="btn ghost" type="button" data-vact="cancel">Cancel</button></div>` : "";
@@ -1280,7 +1295,10 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       const onShelf = !!(r.chosenTitle || r.shelfBookId);
       const winner = !tie && res[0];
       const pk = r.pick;
-      head.innerHTML = `<h2>${!announced ? (pk ? `The pick: <em>${esc(pk.title)}</em>` : "Voting closed: it's a tie") : winner || pk ? `The club picked <em>${esc((pk || winner).title)}</em>` : "Voting closed: it's a tie"}</h2><p class="muted">${r.ballotCount || 0} ballot${r.ballotCount === 1 ? "" : "s"} · ${r.picks > 1 ? `ranked, ${Array.from({ length: r.picks }, (_, i) => r.picks - i).join("/")} points` : "one pick each"}${!announced ? " · Only you can see this until you announce it." : (winner || pk) ? (onShelf ? " · Set as the next meeting's book." : "") : ""}${!pk && !winner && V.isAdmin && !announced ? " Choose which tied book to read." : ""}</p>`
+      if (announced && V.isAdmin) {
+        head.innerHTML = `<h2>Last vote</h2><p class="muted">${r.ballotCount || 0} ballot${r.ballotCount === 1 ? "" : "s"}. <em>${esc((pk || winner || {}).title || "")}</em> is on the Next meeting card. Only you can see these results.</p>`;
+      }
+      if (!announced) head.innerHTML = `<h2>${pk ? `The pick: <em>${esc(pk.title)}</em>` : "Voting closed: it's a tie"}</h2><p class="muted">${r.ballotCount || 0} ballot${r.ballotCount === 1 ? "" : "s"} · ${r.picks > 1 ? `ranked, ${Array.from({ length: r.picks }, (_, i) => r.picks - i).join("/")} points` : "one pick each"}${!announced ? " · Only you can see this until you announce it." : (winner || pk) ? (onShelf ? " · Set as the next meeting's book." : "") : ""}${!pk && !winner && V.isAdmin && !announced ? " Choose which tied book to read." : ""}</p>`
         + (!announced && pk ? `<div class="pick-box">${coverHTML({ title: pk.title, author: pk.author, coverId: pk.coverId })}<div class="pk-body"><span class="eyebrow">Picked book</span><span class="pk-title">${esc(pk.title)}</span><span class="pk-meta">${[pk.author, pk.readOn ? "Read " + MONTH_NAMES[+pk.readOn.slice(5) - 1] + " " + pk.readOn.slice(0, 4) : "", pk.pickedBy ? "Picked by " + pk.pickedBy : ""].filter(Boolean).map(esc).join(" · ")}</span>
             <div class="pk-act"><button class="btn ghost" type="button" data-vact="pick-edit">Edit book</button>${V.confirm === "announce" ? `<button class="btn" type="button" data-vact="announce-yes">Yes, announce it</button><button class="btn ghost" type="button" data-vact="cancel">Not yet</button>` : `<button class="btn" type="button" data-vact="announce">Announce to the club</button>`}</div></div></div>` : "");
       list.innerHTML = `<details class="past"${tie && !pk ? " open" : ""}><summary>Full results</summary><ol class="results" style="margin-top:8px">${res.map((x, i) => `<li class="res${i === 0 && !tie ? " win" : ""}">
@@ -1305,7 +1323,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const sg = roundSugs(r).find(y => y.id === x.id) || {};
     const n = state.next || {};
     return { title: x.title, author: x.author || "", pages: x.pages || sg.pages || "", description: sg.description || "",
-      readOn: /^\d{4}-\d{2}/.test(n.date || "") ? n.date.slice(0, 7) : "", pickedBy: "", coverId: "", goodreads: "" };
+      readOn: /^\d{4}-\d{2}/.test(n.date || "") ? n.date.slice(0, 7) : "", pickedBy: "", coverId: "" };
   }
   async function announcePick(r) {
     if (!r.pick) return;
@@ -1401,7 +1419,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       V.mine[r.id] = { ...rec, suggestions: [...rec.suggestions, ref.id], items: [...(rec.items || []), { id: ref.id, title: doc.title, author: doc.author, pages: doc.pages, description: doc.description }] };
       await guard(() => saveMine(r.id));
       ["sgTitle", "sgAuthor", "sgPages", "sgDesc"].forEach(id => $(id).value = "");
-      V.sgOpen = false; notice("Suggestion submitted anonymously.");
+      V.sgOpen = false; V.flash = "Your suggestion is in, anonymously."; clearTimeout(V.flashT); V.flashT = setTimeout(() => { V.flash = ""; renderVote(); }, 6000);
     }
     renderVote();
   });
@@ -1439,28 +1457,23 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       days = Math.round((dt - today) / 86400000);
       rel = days > 1 ? `in ${days} days` : days === 1 ? "tomorrow" : days === 0 ? "today" : "this meeting has passed";
     }
-    const where = n.where ? `${esc(n.where)} <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(n.where)}" target="_blank" rel="noopener">Map</a>` : "–";
-    const hostLine = n.host || n.where ? `<div class="next-line">${n.host ? `Hosted by <b>${esc(n.host)}</b>` : ""}${n.host && n.where ? `<span class="dot">·</span>` : ""}${n.where ? `<span>${where}</span>` : ""}</div>` : "";
-    if (book && days != null && days >= 0) {
-      card.classList.add("featured");
-      const big = days === 0 ? "Today" : days === 1 ? "Tomorrow" : String(days);
-      card.innerHTML = `${book.id ? `<button class="cover-btn feat-cover" type="button" data-act="zoom" data-id="${esc(book.id)}" aria-label="Enlarge cover of ${esc(book.title)}">${coverHTML(book)}</button>` : `<div class="feat-cover">${coverHTML(book)}</div>`}
-        <div class="feat-body">
-          <div class="next-top"><span class="eyebrow feat-eyebrow">Next meeting · we're reading</span>${editBtn}</div>
-          <h2 class="feat-title">${esc(book.title)}</h2>
-          ${book.author ? `<div class="feat-author">${esc(book.author)}</div>` : ""}
-          <div class="feat-when">${cal}<div><div class="next-when">${esc(when)}</div>${hostLine}</div></div>
-          <div class="feat-count"><span class="n">${big}</span>${days > 1 ? `<span>days to go</span>` : `<span>${days === 0 ? "See you there" : "Almost time"}</span>`}</div>
-          ${doneBtn}
-        </div>`;
-      return;
-    }
-    card.innerHTML = `${cal}<div class="next-body">
-        <div class="next-top"><div><span class="eyebrow">Next meeting</span><div class="next-when">${esc(when)}</div>${rel ? `<span class="next-rel">${rel}</span>` : ""}</div>${editBtn}</div>
-        <div class="next-book">${book ? coverHTML(book, true) : `<div class="cover sm gen" style="--c1:var(--line);--c2:var(--muted)"><span class="gt">?</span></div>`}<div><div class="t">${book ? esc(book.title) : "Book to be decided"}</div>${book && book.author ? `<div class="a">${esc(book.author)}</div>` : ""}</div></div>
-        ${hostLine}
-        ${doneBtn}
-      </div>`;
+    const place = [n.host, n.where].filter(Boolean).join(", ");
+    const upcoming = days != null && days >= 0;
+    const fromVote = !!(n.pending && n.pending.roundId && !n.bookId);
+    card.classList.toggle("featured", !!(book && upcoming));
+    const coverEl = book ? (book.id
+      ? `<button class="cover-btn" type="button" data-act="zoom" data-id="${esc(book.id)}" aria-label="Enlarge cover of ${esc(book.title)}">${coverHTML(book)}</button>`
+      : coverHTML(book)) : `<div class="cover gen" style="--c1:var(--line);--c2:var(--muted)"><span class="gt">?</span></div>`;
+    const count = upcoming ? `<div class="nm-count"><span class="n">${days === 0 ? "Today" : days === 1 ? "1" : days}</span><span class="l">${days === 0 ? "see you there" : days === 1 ? "day to go" : "days to go"}</span></div>`
+      : days != null ? `<div class="nm-count past"><span class="l">This meeting has passed</span></div>` : "";
+    card.innerHTML = `<div class="nm-head"><span class="eyebrow nm-eyebrow">Next meeting</span>${editBtn}</div>
+      <div class="nm-book">${coverEl}<div class="nm-bk">
+        ${fromVote ? `<span class="nm-badge">★ The club picked this</span>` : ""}
+        <h2 class="nm-title">${book ? esc(book.title) : "Book to be decided"}</h2>
+        ${book && book.author ? `<div class="nm-author">${esc(book.author)}</div>` : ""}
+      </div></div>
+      <div class="nm-when">${cal}<div class="nm-wt"><div class="next-when">${esc(when)}</div>${place ? `<div class="nm-place">${esc(place)}</div>` : ""}</div>${count}</div>
+      ${doneBtn}`;
   }
   function openNextForm() {
     if (!(canEditShelf() && V.isAdmin)) return;
@@ -1471,8 +1484,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       + (n.pending && n.pending.title ? `<option value="__pending">${esc(n.pending.title)} (vote winner)</option>` : "")
       + list.map(b => `<option value="${esc(b.id)}">${esc(b.title)}</option>`).join("");
     $("nBook").value = n.bookId || (n.pending && n.pending.title ? "__pending" : "");
-    $("nHostList").innerHTML = activeMembers().map(m => `<option value="${esc(m)}"></option>`).join("");
-    $("nHost").value = n.host || ""; $("nWhere").value = n.where || "";
+    $("nWhere").value = [n.host, n.where].filter(Boolean).join(", ");
     state.editingNext = true; $("nextForm").hidden = false; renderNext(); $("nDate").focus();
   }
   function closeNextForm() { state.editingNext = false; $("nextForm").hidden = true; renderNext(); }
@@ -1490,9 +1502,10 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     if (!n.bookId && n.pending && n.pending.title) {
       const pd = n.pending, book = { title: pd.title, author: pd.author || "", readOn: pd.readOn || month, pickedBy: pd.pickedBy || "", ratings: {}, createdAt: Date.now() };
       if (pd.coverId) book.coverId = pd.coverId;
-      if (pd.goodreads) book.goodreads = { url: pd.goodreads };
-      const ok = await guard(() => state.db.collection("books").doc().set(book));
+      const ref = state.db.collection("books").doc();
+      const ok = await guard(() => ref.set(book));
       if (!ok) return;
+      addGoodreads(ref.id, book.title, book.author);
     }
     state.next = {}; renderNext();
     await guard(() => state.db.doc("club/next").set({ updatedAt: Date.now() }));
@@ -1504,7 +1517,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   $("nextForm").addEventListener("submit", e => {
     e.preventDefault();
     const pick = $("nBook").value, prev = state.next || {};
-    const data = { date: $("nDate").value, time: $("nTime").value, bookId: pick === "__pending" ? "" : pick, host: $("nHost").value.trim(), where: $("nWhere").value.trim(), updatedAt: Date.now() };
+    const data = { date: $("nDate").value, time: $("nTime").value, bookId: pick === "__pending" ? "" : pick, host: "", where: $("nWhere").value.trim(), updatedAt: Date.now() };
     if (pick === "__pending" && prev.pending) data.pending = prev.pending;
     state.next = data; closeNextForm();
     guard(() => state.db.doc("club/next").set(data));
@@ -1572,6 +1585,24 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     if (!$("menuList").hidden) closeMenu(true); else if (!$("bookEditor").hidden) closeEditor(); else if (!$("lightbox").hidden) closeLightbox(); else if (!$("sheet").hidden) closeSheet();
   });
 
+  // Goodreads: look up the book's page via Open Library (Goodreads itself blocks browser requests).
+  async function findGoodreads(title, author) {
+    try {
+      const q = new URLSearchParams({ title, fields: "id_goodreads,edition_count", limit: "3" });
+      if (author) q.set("author", author.split("/")[0].trim());
+      const r = await fetch("https://openlibrary.org/search.json?" + q);
+      const docs = ((await r.json()).docs || []).filter(d => d.id_goodreads && d.id_goodreads.length).sort((a, b) => (b.edition_count || 0) - (a.edition_count || 0));
+      if (!docs.length) return "";
+      const tally = {}; let best = null;
+      for (const id of docs[0].id_goodreads) { tally[id] = (tally[id] || 0) + 1; if (!best || tally[id] > tally[best]) best = id; }
+      return best && /^\d+$/.test(best) ? "https://www.goodreads.com/book/show/" + best : "";
+    } catch (e) { return ""; }
+  }
+  async function addGoodreads(bookId, title, author) {
+    const url = await findGoodreads(title, author);
+    if (url) await guard(() => state.db.doc("books/" + bookId).update({ goodreads: { url } }));
+  }
+
   // Book editor: shelf books, the private pick, and the announced (pending) next book share one form
   const ED = { target: null, coverId: "" };
   function drawEditorCover() {
@@ -1588,6 +1619,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     $("edPicked").value = b.pickedBy || "";
     const gr = typeof b.goodreads === "string" ? b.goodreads : (b.goodreads && b.goodreads.url) || "";
     $("edGr").value = gr;
+    $("edGrField").hidden = target.kind !== "shelf";
     $("edCoverBtn").hidden = !state.assets;
     drawEditorCover();
     $("bookEditor").hidden = false; document.documentElement.style.overflow = "hidden";
@@ -1611,13 +1643,13 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       const cur = state.books.find(x => x.id === t.id) || {};
       const data = { ...cur, ...f, goodreads: gr ? { url: gr } : null };
       delete data.id; if (!data.coverId) data.coverId = null;
-      await guard(() => state.db.doc("books/" + t.id).set(data));
+      if (await guard(() => state.db.doc("books/" + t.id).set(data)) && !gr) addGoodreads(t.id, f.title, f.author);
     } else if (t.kind === "pick") {
       const r = V.rounds.find(x => x.id === t.rid);
-      await guard(() => state.db.doc("rounds/" + t.rid).update({ pick: { ...(r && r.pick || {}), ...f, goodreads: gr } }));
+      await guard(() => state.db.doc("rounds/" + t.rid).update({ pick: { ...(r && r.pick || {}), ...f } }));
     } else if (t.kind === "pending") {
       const n = state.next || {};
-      const next = { ...n, pending: { ...(n.pending || {}), ...f, goodreads: gr }, updatedAt: Date.now() };
+      const next = { ...n, pending: { ...(n.pending || {}), ...f }, updatedAt: Date.now() };
       state.next = next; renderNext();
       await guard(() => state.db.doc("club/next").set(next));
     }
