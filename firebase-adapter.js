@@ -9,8 +9,9 @@
     messagingSenderId: "1039214667173",
     appId: "1:1039214667173:web:20d4f321d3639f22cfb44c"
   };
-  // Google accounts that get the organizer controls. Must match firestore.rules.
-  const ORGANIZERS = ["tobias.fabricius@gmail.com"];
+  // The owner is always an organizer (also hard-coded in firestore.rules).
+  // Further organizers are listed in Firestore at club/organizers {emails: [...]}.
+  const OWNER = "tobias.fabricius@gmail.com";
   const SDK = "https://www.gstatic.com/firebasejs/10.12.2/";
 
   const ready = (async () => {
@@ -24,13 +25,21 @@
     const auth = au.getAuth(app);
     await new Promise(res => { const un = au.onAuthStateChanged(auth, () => { un(); res(); }); });
     if (!auth.currentUser) await au.signInAnonymously(auth);
-    return { fs, au, db, auth };
+    const F = { fs, au, db, auth, orgs: [OWNER] };
+    const u = auth.currentUser;
+    if (u && !u.isAnonymous && u.emailVerified) {
+      try {
+        const s = await fs.getDoc(fs.doc(db, "club/organizers"));
+        if (s.exists()) F.orgs = F.orgs.concat((s.data().emails || []).map(e => String(e).toLowerCase()));
+      } catch (e) { /* not an organizer: the rules refuse the read */ }
+    }
+    return F;
   })();
   ready.catch(err => console.error("Firebase failed to start", err));
 
   const isOrganizer = (F) => {
     const u = F.auth.currentUser;
-    return !!(u && !u.isAnonymous && u.email && u.emailVerified && ORGANIZERS.includes(u.email.toLowerCase()));
+    return !!(u && !u.isAnonymous && u.email && u.emailVerified && F.orgs.includes(u.email.toLowerCase()));
   };
   const mapErr = (e) => ({ code: e && e.code === "permission-denied" ? "permission_denied" : (e && e.code) || "unavailable", message: (e && e.message) || "" });
   const wrapDoc = (s) => ({ id: s.id, exists: s.exists(), data: () => s.data(), metadata: s.metadata });
@@ -147,5 +156,15 @@
   }
 
   window.claude = { use };
-  window.bbc = { signIn, signOut, whoAmI, importShelf, canRead, join, getPassword, setPassword };
+  async function getOrganizers() {
+    const F = await ready;
+    const s = await F.fs.getDoc(F.fs.doc(F.db, "club/organizers")).catch(() => null);
+    return { owner: OWNER, emails: s && s.exists() ? (s.data().emails || []) : [] };
+  }
+  async function setOrganizers(emails) {
+    const F = await ready;
+    await F.fs.setDoc(F.fs.doc(F.db, "club/organizers"), { emails, updatedAt: Date.now() });
+  }
+
+  window.bbc = { signIn, signOut, whoAmI, importShelf, canRead, join, getPassword, setPassword, getOrganizers, setOrganizers };
 })();

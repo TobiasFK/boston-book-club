@@ -15,8 +15,11 @@ service cloud.firestore {
     }
     function inClub() { return organizer() || member(); }
     function organizer() {
+      // The owner, plus anyone listed in club/organizers (managed on the site under Members).
       return signedIn() && request.auth.token.get('email_verified', false) == true
-        && request.auth.token.get('email', '').lower() in ['tobias.fabricius@gmail.com'];
+        && (request.auth.token.get('email', '').lower() in ['tobias.fabricius@gmail.com']
+          || (exists(/databases/$(database)/documents/club/organizers)
+            && request.auth.token.get('email', '').lower() in get(/databases/$(database)/documents/club/organizers).data.get('emails', [])));
     }
     // Each person's private record for a round: which suggestions and ballot are theirs.
     function mine(rid) { return /databases/$(database)/documents/data/users/$(request.auth.uid)/$('vote-' + rid); }

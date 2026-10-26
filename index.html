@@ -430,6 +430,17 @@ textarea { font: inherit; color: inherit; background: var(--surface); border: 1p
 .done-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 6px; }
 .done-row span { flex: 1 1 220px; font-size: 14px; }
 .vote-flash { margin: 0; align-self: flex-start; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent); font-weight: 700; font-size: 14px; border-radius: 999px; padding: 6px 14px; }
+.org-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.org-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 14px; overflow-wrap: anywhere; }
+.org-list .tag { font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.past-round { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.past-round + .past-round { margin-top: 8px; }
+.past-round summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; list-style: none; }
+.past-round summary::-webkit-details-marker { display: none; }
+.past-round summary .when { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.past-round summary .win { font-weight: 700; }
+.past-round summary .meta { font-size: 13px; color: var(--muted); width: 100%; }
+.past-round .results { margin-top: 10px; }
 .sealed { display: flex; flex-direction: column; gap: 2px; border: 1.5px dashed var(--line); border-radius: 10px; padding: 14px 16px; text-align: center; }
 .sealed strong { font-family: var(--display); font-size: 17px; font-weight: 600; }
 .sealed span { color: var(--muted); font-size: 14px; }
@@ -507,6 +518,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
           <button role="menuitem" type="button" data-go="home">Home</button>
           <button role="menuitem" type="button" data-go="statsPanel">Club stats</button>
           <button role="menuitem" type="button" data-go="membersPanel">Members</button>
+          <button role="menuitem" type="button" data-go="pastPanel" class="write-only">Past votes</button>
         </div>
       </div>
     </div>
@@ -598,6 +610,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       <div class="tabs" role="tablist" aria-label="Menu sections">
         <button class="tab" role="tab" type="button" id="tabStats" data-tab="statsPanel" aria-controls="statsPanel" aria-selected="true">Club stats</button>
         <button class="tab" role="tab" type="button" id="tabMembers" data-tab="membersPanel" aria-controls="membersPanel" aria-selected="false">Members <span class="cnt" id="memberCount"></span></button>
+        <button class="tab write-only" role="tab" type="button" id="tabPast" data-tab="pastPanel" aria-controls="pastPanel" aria-selected="false">Past votes</button>
       </div>
       <button class="sheet-close" type="button" data-close aria-label="Close menu">×</button>
     </div>
@@ -610,9 +623,22 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
         </ol>
         <div id="stats"></div>
       </section>
+      <section class="drawer" id="pastPanel" role="tabpanel" aria-labelledby="tabPast" hidden>
+        <div class="drawer-head"><h2>Past votes</h2><span class="muted">Only organizers see this</span></div>
+        <div id="pastList"></div>
+      </section>
       <section class="drawer" id="membersPanel" role="tabpanel" aria-labelledby="tabMembers" hidden>
         <div class="drawer-head"><h2 id="membersHead">Members</h2><button class="link-btn write-only" id="reorderBtn" type="button">Edit</button></div>
         <div id="chips"></div>
+        <div class="pw-box write-only" id="orgBox">
+          <h3>Organizers</h3>
+          <p class="muted">Organizers sign in with Google (link at the bottom of the page) and get the same controls as you.</p>
+          <ul class="org-list" id="orgList"></ul>
+          <form class="inline-form" id="orgForm">
+            <input type="email" id="orgInput" maxlength="120" placeholder="Their Google email" aria-label="Organizer email" autocomplete="off">
+            <button class="btn" type="submit">Add organizer</button>
+          </form>
+        </div>
         <div class="pw-box write-only" id="pwBox">
           <h3>Club password</h3>
           <p class="muted">Members enter this once per device. Changing it signs everyone out until they enter the new one.</p>
@@ -1311,8 +1337,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       admin.innerHTML = V.isAdmin && announced ? (V.startMode ? "" : `<button class="btn ghost" type="button" data-vact="start">Start the submission process</button>`) : "";
       }
     }
-    const past = V.rounds.filter(x => x.phase === "closed" && (!r || x.id !== r.id)).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0));
-    hist.innerHTML = past.length ? `<details class="past"><summary>Past rounds (${past.length})</summary><ul>${past.map(x => { const w = (x.results || [])[0]; const d = new Date(x.closedAt || x.createdAt || 0); return `<li><span class="muted">${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getFullYear()}</span> ${w ? `<b>${esc(w.title)}</b> won with ${w.points} pts` : "No votes"}</li>`; }).join("")}</ul></details>` : "";
+    hist.innerHTML = ""; // past votes live in the organizer-only Menu → Past votes
   }
 
   // Put the winning book on the shelf and make it the next meeting's book.
@@ -1528,7 +1553,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   function showTab(id) {
     document.querySelectorAll("[data-tab]").forEach(t => { const on = t.dataset.tab === id; t.setAttribute("aria-selected", String(on)); $(t.dataset.tab).hidden = !on; });
     try { localStorage.setItem("bcs-tab", id); } catch (e) {}
-    renderStats();
+    renderStats(); if (id === "pastPanel") renderPast(); if (id === "membersPanel") renderOrganizers();
   }
   function openSheet(want) {
     let tab = want || "statsPanel";
@@ -1563,7 +1588,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   $("menuList").addEventListener("click", e => {
     const b = e.target.closest("[data-go]"); if (!b) return;
     const go = b.dataset.go; closeMenu(false);
-    if (go === "statsPanel" || go === "membersPanel") return openSheet(go);
+    if (go === "statsPanel" || go === "membersPanel" || go === "pastPanel") return openSheet(go);
     if (go === "home") {
       if (!$("sheet").hidden) closeSheet();
       const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1588,20 +1613,69 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   // Goodreads: look up the book's page via Open Library (Goodreads itself blocks browser requests).
   async function findGoodreads(title, author) {
     try {
-      const q = new URLSearchParams({ title, fields: "id_goodreads,edition_count", limit: "3" });
+      // Find the work, then pick the Goodreads ID shared by most of its English editions
+      // (ties go to the oldest ID, which is usually Goodreads' main page for the book).
+      const q = new URLSearchParams({ title, fields: "key,edition_count", limit: "3" });
       if (author) q.set("author", author.split("/")[0].trim());
-      const r = await fetch("https://openlibrary.org/search.json?" + q);
-      const docs = ((await r.json()).docs || []).filter(d => d.id_goodreads && d.id_goodreads.length).sort((a, b) => (b.edition_count || 0) - (a.edition_count || 0));
-      if (!docs.length) return "";
-      const tally = {}; let best = null;
-      for (const id of docs[0].id_goodreads) { tally[id] = (tally[id] || 0) + 1; if (!best || tally[id] > tally[best]) best = id; }
-      return best && /^\d+$/.test(best) ? "https://www.goodreads.com/book/show/" + best : "";
+      const docs = ((await (await fetch("https://openlibrary.org/search.json?" + q)).json()).docs || [])
+        .sort((a, b) => (b.edition_count || 0) - (a.edition_count || 0));
+      if (!docs.length || !/^\/works\/OL\d+W$/.test(docs[0].key)) return "";
+      const eds = (await (await fetch("https://openlibrary.org" + docs[0].key + "/editions.json?limit=300")).json()).entries || [];
+      const tally = {};
+      for (const e of eds) {
+        const langs = (e.languages || []).map(l => l.key);
+        if (langs.length && !langs.includes("/languages/eng")) continue;
+        for (const id of ((e.identifiers || {}).goodreads || [])) if (/^\d+$/.test(id)) tally[id] = (tally[id] || 0) + 1;
+      }
+      const best = Object.keys(tally).sort((a, b) => tally[b] - tally[a] || Number(a) - Number(b))[0];
+      return best ? "https://www.goodreads.com/book/show/" + best : "";
     } catch (e) { return ""; }
   }
   async function addGoodreads(bookId, title, author) {
     const url = await findGoodreads(title, author);
     if (url) await guard(() => state.db.doc("books/" + bookId).update({ goodreads: { url } }));
   }
+
+  // Past votes (organizers only)
+  function renderPast() {
+    const el = $("pastList"); if (!el || !V.isAdmin) return;
+    const past = V.rounds.filter(x => x.phase === "closed").sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0));
+    if (!past.length) { el.innerHTML = `<p class="muted">No finished votes yet.</p>`; return; }
+    el.innerHTML = past.map(x => {
+      const res = x.results || [], max = Math.max(1, ...res.map(y => y.points));
+      const d = new Date(x.closedAt || x.createdAt || 0);
+      const w = (x.pick && x.pick.title) || (res[0] && res[0].title) || "";
+      return `<details class="past-round"><summary><span class="when">${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getFullYear()}</span><span class="win">${w ? esc(w) : "No winner"}</span>
+          <span class="meta">${[x.theme ? "Theme: " + x.theme : "", `${x.ballotCount || 0} ballot${x.ballotCount === 1 ? "" : "s"}`, `${res.length} book${res.length === 1 ? "" : "s"} suggested`, x.announced === false ? "not announced yet" : ""].filter(Boolean).map(esc).join(" · ")}</span></summary>
+        <ol class="results">${res.map((y, i) => `<li class="res${i === 0 ? " win" : ""}"><span class="res-pos">${i + 1}</span><div class="res-main"><span class="res-title">${esc(y.title)}</span>${y.author ? `<span class="sg-meta">${esc(y.author)}</span>` : ""}<span class="res-bar"><span style="width:${(y.points / max) * 100}%"></span></span><span class="res-sub">${y.points} pt${y.points === 1 ? "" : "s"} · ${y.firsts} first-choice · on ${y.voters} ballot${y.voters === 1 ? "" : "s"}</span></div></li>`).join("")}</ol>
+      </details>`;
+    }).join("");
+  }
+
+  // Organizers (owner is fixed; others are managed here)
+  async function renderOrganizers() {
+    if (!V.isAdmin || !window.bbc || !window.bbc.getOrganizers) return;
+    const o = await window.bbc.getOrganizers();
+    state.orgs = o;
+    $("orgList").innerHTML = `<li><span>${esc(o.owner)}</span><span class="tag">Owner</span></li>` + o.emails.map(e =>
+      `<li><span>${esc(e)}</span><button class="link-btn quiet" type="button" data-org-remove="${esc(e)}">Remove</button></li>`).join("");
+  }
+  $("orgForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const em = $("orgInput").value.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { notice("Enter a valid email address.", true); return; }
+    const cur = (state.orgs && state.orgs.emails) || [];
+    if (em === (state.orgs && state.orgs.owner) || cur.includes(em)) { notice(`${em} is already an organizer.`); return; }
+    try { await window.bbc.setOrganizers([...cur, em]); $("orgInput").value = ""; notice(`${em} is now an organizer. They sign in with Google at the bottom of the page.`); }
+    catch (err) { notice("Couldn't add the organizer. Check you're signed in as organizer.", true); }
+    renderOrganizers();
+  });
+  document.addEventListener("click", async e => {
+    const b = e.target.closest("[data-org-remove]"); if (!b) return;
+    const em = b.dataset.orgRemove, cur = (state.orgs && state.orgs.emails) || [];
+    try { await window.bbc.setOrganizers(cur.filter(x => x !== em)); notice(`${em} is no longer an organizer.`); } catch (err) { notice("Couldn't remove the organizer.", true); }
+    renderOrganizers();
+  });
 
   // Book editor: shelf books, the private pick, and the announced (pending) next book share one form
   const ED = { target: null, coverId: "" };
