@@ -281,6 +281,7 @@ details.add[open] summary::after { content: "–"; }
 .book-meta { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .book-title { font-size: 22px; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
 .book-author { color: var(--muted); overflow-wrap: anywhere; }
+.book-title + .book-author { margin-top: -5px; }
 /* Laptop/desktop: bigger cover and title so the top of each card fills its width */
 @media (min-width: 700px) {
   .card { padding: 22px; gap: 18px; }
@@ -293,6 +294,7 @@ details.add[open] summary::after { content: "–"; }
   .book-meta { gap: 8px; }
   .book-title { font-size: 32px; font-weight: 700; line-height: 1.1; letter-spacing: -.01em; }
   .book-author { font-size: 18px; }
+  .book-title + .book-author { margin-top: -6px; }
   .gr { font-size: 14px; }
   .picked { font-size: 14px; }
 }
