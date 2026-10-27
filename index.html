@@ -763,7 +763,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       <span class="lb-title" id="pvTitle"></span>
       <span class="lb-author" id="pvCaption"></span>
       <span class="pv-count" id="pvCount"></span>
-      <span class="lb-actions"><button class="btn ghost" type="button" id="pvDelete" hidden>Delete photo</button></span>
+      <span class="lb-actions"><button class="btn ghost" type="button" id="pvAdd" hidden>+ Add another photo</button><button class="btn ghost" type="button" id="pvDelete" hidden>Delete photo</button></span>
     </figcaption>
   </figure>
 </div>
@@ -1181,7 +1181,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const p = ps[0];
     return `<figure class="meet-photo">
         <button class="mp-btn" type="button" data-act="photo-open" data-id="${esc(book.id)}" aria-label="Open the meeting photo for ${esc(book.title)}"><img src="${p.thumb}" alt="${esc(p.caption || "Book club meeting for " + book.title)}" loading="lazy">${ps.length > 1 ? `<span class="mp-count">1 of ${ps.length}</span>` : ""}</button>
-        ${p.caption || can ? `<figcaption>${p.caption ? `<span>${esc(p.caption)}</span>` : "<span></span>"}${can ? `<button class="link-btn quiet" type="button" data-act="photo-add" data-id="${esc(book.id)}">+ Add photo</button>` : ""}</figcaption>` : ""}
+        ${p.caption ? `<figcaption><span>${esc(p.caption)}</span></figcaption>` : ""}
       </figure>`;
   }
   async function shrink(file, maxSide, quality) {
@@ -1272,6 +1272,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     $("pvTitle").textContent = book.title || ""; $("pvCaption").textContent = p.caption || "";
     $("pvCount").textContent = ps.length > 1 ? `${PV.i + 1} of ${ps.length}` : "";
     $("pvPrev").hidden = $("pvNext").hidden = ps.length < 2;
+    $("pvAdd").hidden = !canEditShelf();
     $("pvDelete").hidden = !canDeletePhoto(p); $("pvDelete").textContent = "Delete photo"; PV.confirm = false;
     try { const f = await state.db.doc("photoFull/" + p.id).get(); if (f.exists && PV.bookId === p.bookId && photosFor(PV.bookId)[PV.i] === p) $("pvImg").src = f.data().data; } catch (e) {}
   }
@@ -1292,6 +1293,13 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   let pvX = null;
   $("pvImg").addEventListener("touchstart", e => { pvX = e.touches[0].clientX; }, { passive: true });
   $("pvImg").addEventListener("touchend", e => { if (pvX == null) return; const dx = e.changedTouches[0].clientX - pvX; pvX = null; if (Math.abs(dx) > 40) stepPhoto(dx < 0 ? 1 : -1); });
+  $("pvAdd").addEventListener("click", () => {
+    const bookId = PV.bookId; if (!bookId) return;
+    state.photoFor = bookId; $("photoInput").click();
+    closePhoto();
+    const card = [...document.querySelectorAll('[data-act="photo-open"]')].find(b => b.dataset.id === bookId);
+    if (card) card.closest(".card").scrollIntoView({ block: "center" });
+  });
   $("pvDelete").addEventListener("click", async () => {
     const p = photosFor(PV.bookId)[PV.i]; if (!p) return;
     if (!PV.confirm) { PV.confirm = true; $("pvDelete").textContent = "Tap again to delete"; return; }
