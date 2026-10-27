@@ -476,6 +476,7 @@ table.ov { width: 100%; border-collapse: separate; border-spacing: 0; font-size:
 .ov tfoot th, .ov tfoot td { border-bottom: 0; border-top: 2px solid var(--line); font-weight: 700; position: sticky; bottom: 0; }
 .ov tfoot th { font-family: var(--body); font-size: 12px; }
 @media (max-width: 480px) { .ov .ov-book { min-width: 112px; max-width: 132px; } .ov th, .ov td { padding: 7px 6px; } }
+.ov .ov-split { border-left: 2px solid var(--line); }
 .ov .ov-n { display: block; font-size: 10px; font-weight: 400; color: var(--muted); }
 .gal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .gal-item { display: flex; flex-direction: column; gap: 6px; padding: 0; border: 0; background: none; text-align: left; cursor: zoom-in; min-width: 0; }
@@ -710,7 +711,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
             <button class="seg" type="button" data-ov-sort="recent" aria-pressed="true">Most recent</button>
             <button class="seg" type="button" data-ov-sort="top" aria-pressed="false">Highest rated</button>
           </div>
-          <label class="ov-check"><input type="checkbox" id="ovInactive"> Show inactive members</label>
+          <label class="ov-check"><input type="checkbox" id="ovInactive" checked> Show inactive members</label>
         </div>
         <div id="ovTable"></div>
       </section>
@@ -1226,25 +1227,28 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const showInactive = $("ovInactive").checked;
     const books = state.books.slice().sort(state.ovSort === "top" ? (a, b) => (avgFor(b).avg ?? -1) - (avgFor(a).avg ?? -1) : byRecent);
     const val = (m, b) => { const v = (b.ratings || {})[m]; return typeof v === "number" && countsFor(m, b) ? v : null; };
-    const cols = state.settings.members.filter(m => showInactive || !isInactive(m));
+    // Active members first (in member order), then inactive ones.
+    const active = state.settings.members.filter(m => !isInactive(m));
+    const cols = active.concat(showInactive ? state.settings.members.filter(isInactive) : []);
+    const firstInactive = showInactive ? cols[active.length] : null;
     if (!books.length) { el.innerHTML = `<p class="muted">No books on the shelf yet.</p>`; return; }
     const heat = (v) => v == null ? "" : ` style="--h:${(v / 5).toFixed(2)}"`;
     const first = (m) => m.split(" ")[0];
-    const head = `<tr><th class="ov-book" scope="col">Book</th><th scope="col" class="ov-avg">Avg</th>${cols.map(m => `<th scope="col" title="${esc(m)}">${esc(first(m))}</th>`).join("")}</tr>`;
+    const head = `<tr><th class="ov-book" scope="col">Book</th><th scope="col" class="ov-avg">Avg</th>${cols.map(m => `<th scope="col" title="${esc(m)}"${m === firstInactive ? ' class="ov-split"' : ""}>${esc(first(m))}</th>`).join("")}</tr>`;
     const rows = books.map(b => {
       const a = avgFor(b);
       const when = b.readOn ? `${MONTHS[+b.readOn.slice(5) - 1]} ’${b.readOn.slice(2, 4)}` : "";
       return `<tr><th scope="row" class="ov-book"><span class="ov-t">${esc(b.title)}</span>${when ? `<span class="ov-d">${when}</span>` : ""}</th>
         <td class="ov-avg"${heat(a.avg)}>${a.avg == null ? "–" : fmt(a.avg)}</td>
-        ${cols.map(m => { const v = val(m, b); return `<td${heat(v)} title="${esc(m)}: ${v == null ? "no rating" : v}">${v == null ? "" : v.toFixed(1)}</td>`; }).join("")}</tr>`;
+        ${cols.map(m => { const v = val(m, b); return `<td${heat(v)}${m === firstInactive ? ' class="ov-split"' : ""} title="${esc(m)}: ${v == null ? "no rating" : v}">${v == null ? "" : v.toFixed(1)}</td>`; }).join("")}</tr>`;
     }).join("");
     const foot = `<tr><th scope="row" class="ov-book">Member average</th><td class="ov-avg"></td>${cols.map(m => {
       const vs = books.map(b => val(m, b)).filter(v => v != null);
       const av = vs.length ? vs.reduce((x, y) => x + y, 0) / vs.length : null;
-      return `<td${heat(av)} title="${esc(m)}: ${vs.length} rated">${av == null ? "–" : f1(av)}<span class="ov-n">${vs.length}</span></td>`;
+      return `<td${heat(av)}${m === firstInactive ? ' class="ov-split"' : ""} title="${esc(m)}: ${vs.length} rated">${av == null ? "–" : f1(av)}<span class="ov-n">${vs.length}</span></td>`;
     }).join("")}</tr>`;
     el.innerHTML = `<div class="ov-wrap"><table class="ov"><thead>${head}</thead><tbody>${rows}</tbody><tfoot>${foot}</tfoot></table></div>
-      <p class="st-note">Scroll sideways for more members. The small number under each member average is how many books they rated.</p>`;
+      <p class="st-note">Active members come first; inactive members follow after the divider. Scroll sideways for more members. The small number under each member average is how many books they rated.</p>`;
   }
   document.addEventListener("click", e => { const b = e.target.closest("[data-ov-sort]"); if (b) { state.ovSort = b.dataset.ovSort; renderOverview(); } });
   $("ovInactive").addEventListener("change", renderOverview);
