@@ -83,6 +83,28 @@ service cloud.firestore {
         && myRecord(resource.data.roundId).get('ballotId', null) == id;
       allow delete: if organizer();
     }
+    // Meeting photos: anyone in the club can post one for a book on the shelf; the uploader or an organizer can delete it.
+    match /photos/{id} {
+      allow read: if inClub();
+      allow create: if inClub()
+        && request.resource.data.keys().hasOnly(['bookId', 'thumb', 'caption', 'by', 'at'])
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.thumb is string && request.resource.data.thumb.matches('^data:image/jpeg;base64,.*')
+        && request.resource.data.caption is string && request.resource.data.caption.size() <= 140
+        && exists(/databases/$(database)/documents/books/$(request.resource.data.bookId));
+      allow update: if organizer()
+        || (inClub() && resource.data.by == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['caption']));
+      allow delete: if organizer() || (inClub() && resource.data.by == request.auth.uid);
+    }
+    match /photoFull/{id} {
+      allow read: if inClub();
+      allow create: if inClub()
+        && request.resource.data.keys().hasOnly(['data', 'by'])
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.data is string && request.resource.data.data.matches('^data:image/jpeg;base64,.*')
+        && existsAfter(/databases/$(database)/documents/photos/$(id));
+      allow delete: if organizer() || (inClub() && resource.data.by == request.auth.uid);
+    }
     // The club password: only the organizer can see or change it.
     match /secrets/{doc} {
       allow read, write: if organizer();

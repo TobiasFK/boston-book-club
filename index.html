@@ -445,6 +445,25 @@ textarea { font: inherit; color: inherit; background: var(--surface); border: 1p
 .pick-box .pk-act { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .done-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 6px; }
 .done-row span { flex: 1 1 220px; font-size: 14px; }
+.meet-photo { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.mp-btn { position: relative; display: block; width: 100%; padding: 0; border: 0; background: var(--bg); border-radius: 10px; overflow: hidden; cursor: zoom-in; }
+.mp-btn img { display: block; width: 100%; aspect-ratio: 3 / 2; max-height: 340px; object-fit: cover; }
+.mp-count { position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,.6); color: #fff; font-family: var(--mono); font-size: 11px; letter-spacing: .06em; border-radius: 999px; padding: 3px 8px; }
+.meet-photo figcaption { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 14px; color: var(--muted); }
+.meet-photo figcaption .link-btn { font-size: 13px; white-space: nowrap; }
+.photo-add { align-self: flex-start; border: 1px dashed var(--line); background: none; color: var(--muted); border-radius: 999px; padding: 6px 14px; font-size: 13px; }
+.photo-add:hover { border-color: var(--accent); color: var(--accent); }
+.meet-draft { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--accent); border-radius: 10px; padding: 10px; }
+.meet-draft img { width: 100%; aspect-ratio: 3 / 2; max-height: 300px; object-fit: cover; border-radius: 6px; }
+.meet-draft input { font: inherit; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
+#photoViewer .lb-backdrop { background: rgba(6, 10, 12, .94); }
+.pv-fig { position: relative; margin: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 100%; }
+.pv-stage { position: relative; display: flex; align-items: center; justify-content: center; }
+.pv-stage img { display: block; max-width: min(1100px, 92vw); max-height: 74vh; border-radius: 8px; box-shadow: 0 12px 40px rgba(0,0,0,.5); background: #111; }
+.pv-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(0,0,0,.45); color: #fff; font-size: 26px; line-height: 1; }
+.pv-nav.prev { left: 8px; } .pv-nav.next { right: 8px; }
+.pv-count { font-family: var(--mono); font-size: 12px; color: #fff; opacity: .7; }
+.pv-fig figcaption { display: flex; flex-direction: column; align-items: center; gap: 2px; color: #fff; text-align: center; max-width: 92vw; }
 .vote-flash { margin: 0; align-self: flex-start; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent); font-weight: 700; font-size: 14px; border-radius: 999px; padding: 6px 14px; }
 .org-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .org-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 14px; overflow-wrap: anywhere; }
@@ -605,6 +624,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     </div>
   </section>
   <input type="file" id="coverInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+  <input type="file" id="photoInput" accept="image/*" hidden>
 </div>
 
 <footer class="site-foot" id="siteFoot"><span id="footWho"></span><button class="link-btn quiet" type="button" id="footAuth">Organizer sign in</button></footer>
@@ -673,6 +693,24 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       </section>
     </div>
   </div>
+</div>
+
+<div class="lightbox" id="photoViewer" hidden>
+  <div class="lb-backdrop" data-pv-close></div>
+  <figure class="pv-fig" role="dialog" aria-modal="true" aria-labelledby="pvTitle">
+    <button class="lb-close" type="button" data-pv-close aria-label="Close">×</button>
+    <div class="pv-stage">
+      <button class="pv-nav prev" type="button" id="pvPrev" aria-label="Previous photo">‹</button>
+      <img id="pvImg" alt="">
+      <button class="pv-nav next" type="button" id="pvNext" aria-label="Next photo">›</button>
+    </div>
+    <figcaption>
+      <span class="lb-title" id="pvTitle"></span>
+      <span class="lb-author" id="pvCaption"></span>
+      <span class="pv-count" id="pvCount"></span>
+      <span class="lb-actions"><button class="btn ghost" type="button" id="pvDelete" hidden>Delete photo</button></span>
+    </figcaption>
+  </figure>
 </div>
 
 <div class="lightbox" id="voteResults" hidden>
@@ -993,7 +1031,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     document.querySelectorAll(".seg[data-sort]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.sort === state.sort)));
 
     const shelf = $("shelf");
-    if (!state.ready || editingSelectIn(shelf)) return;
+    if (!state.ready || editingSelectIn(shelf) || (document.activeElement && document.activeElement.id === "photoCaption")) return;
     if (!state.books.length) {
       if (V.isAdmin) { shelf.innerHTML = `<div class="empty-state"><strong>The shelf is empty</strong><span>Bring over everything from the Claude version: books, ratings, members and covers.</span><button class="btn" type="button" id="importBtn">Import the shelf</button></div>`; return; }
       shelf.innerHTML = `<div class="empty-state"><strong>No books on the shelf yet</strong><span>${canEditShelf() ? (members.length ? "Use “Add a book” above to log your first read." : "Add your members first, then log your first book above.") : "Books will show up here once the club adds them."}</span></div>`;
@@ -1038,6 +1076,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
           </div>
         </div>
         ${shown.length ? `<div class="ratings">${cells}</div>` : `<p class="muted">Add members to start rating.</p>`}
+        ${photoHTML(book)}
         ${foot ? `<div class="card-foot">${foot}</div>` : ""}
       </article>`;
     }).join("");
@@ -1068,6 +1107,93 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     settingsChain = settingsChain.then(() => guard(() => state.db.doc("club/settings").set(snapshot)));
     return settingsChain;
   }
+
+  // ---------- Meeting photos (usually one per book) ----------
+  // photos/{id}: {bookId, thumb (data URL, ~900px), caption, by (uploader's device id), at}
+  // photoFull/{id}: {data (data URL, ~1800px), by}  — loaded only when a photo is opened
+  state.photos = []; state.photoDraft = null;
+  const photosFor = (bookId) => state.photos.filter(p => p.bookId === bookId).sort((a, b) => (a.at || 0) - (b.at || 0));
+  const canDeletePhoto = (p) => V.isAdmin || (p.by && p.by === V.uid);
+  function photoHTML(book) {
+    const ps = photosFor(book.id), d = state.photoDraft && state.photoDraft.bookId === book.id ? state.photoDraft : null;
+    const can = canEditShelf();
+    if (d) return `<div class="meet-draft"><img src="${d.thumb}" alt="Photo preview">
+        <input type="text" id="photoCaption" maxlength="140" placeholder="Add a caption (optional)" aria-label="Photo caption">
+        <div class="next-form-act"><button class="btn" type="button" data-act="photo-post"${d.busy ? " disabled" : ""}>${d.busy ? "Posting…" : "Post photo"}</button><button class="btn ghost" type="button" data-act="photo-cancel">Cancel</button></div></div>`;
+    if (!ps.length) return can ? `<button class="photo-add" type="button" data-act="photo-add" data-id="${esc(book.id)}">+ Add a photo from this meeting</button>` : "";
+    const p = ps[0];
+    return `<figure class="meet-photo">
+        <button class="mp-btn" type="button" data-act="photo-open" data-id="${esc(book.id)}" aria-label="Open the meeting photo for ${esc(book.title)}"><img src="${p.thumb}" alt="${esc(p.caption || "Book club meeting for " + book.title)}" loading="lazy">${ps.length > 1 ? `<span class="mp-count">1 of ${ps.length}</span>` : ""}</button>
+        ${p.caption || can ? `<figcaption>${p.caption ? `<span>${esc(p.caption)}</span>` : "<span></span>"}${can ? `<button class="link-btn quiet" type="button" data-act="photo-add" data-id="${esc(book.id)}">+ Add photo</button>` : ""}</figcaption>` : ""}
+      </figure>`;
+  }
+  async function shrink(file, maxSide, quality) {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    let q = quality, url = c.toDataURL("image/jpeg", q);
+    while (url.length > 850000 && q > 0.4) { q -= 0.1; url = c.toDataURL("image/jpeg", q); }
+    return url;
+  }
+  $("photoInput").addEventListener("change", async () => {
+    const file = $("photoInput").files[0], bookId = state.photoFor;
+    $("photoInput").value = "";
+    if (!file || !bookId) return;
+    try {
+      const [thumb, full] = await Promise.all([shrink(file, 900, 0.78), shrink(file, 1800, 0.82)]);
+      state.photoDraft = { bookId, thumb, full }; render();
+      setTimeout(() => { const c = $("photoCaption"); if (c) c.focus(); }, 50);
+    } catch (e) { notice("Couldn't read that photo. Try a JPEG or PNG.", true); }
+  });
+  async function postPhoto() {
+    const d = state.photoDraft; if (!d || d.busy) return;
+    const caption = ($("photoCaption") ? $("photoCaption").value.trim() : "").slice(0, 140);
+    d.busy = true; render();
+    const id = state.db.collection("photos").doc().id;
+    const ok = await guard(() => state.db.batch([
+      { op: "set", path: "photos/" + id, data: { bookId: d.bookId, thumb: d.thumb, caption, by: V.uid || "", at: Date.now() } },
+      { op: "set", path: "photoFull/" + id, data: { data: d.full, by: V.uid || "" } }
+    ]));
+    state.photoDraft = ok ? null : { ...d, busy: false }; render();
+    if (ok) notice("Photo posted.");
+  }
+  // Viewer
+  const PV = { bookId: null, i: 0 };
+  async function showPhoto() {
+    const ps = photosFor(PV.bookId), p = ps[PV.i]; if (!p) return closePhoto();
+    const book = state.books.find(b => b.id === PV.bookId) || {};
+    $("pvImg").src = p.thumb; $("pvImg").alt = p.caption || "Meeting photo";
+    $("pvTitle").textContent = book.title || ""; $("pvCaption").textContent = p.caption || "";
+    $("pvCount").textContent = ps.length > 1 ? `${PV.i + 1} of ${ps.length}` : "";
+    $("pvPrev").hidden = $("pvNext").hidden = ps.length < 2;
+    $("pvDelete").hidden = !canDeletePhoto(p); $("pvDelete").textContent = "Delete photo"; PV.confirm = false;
+    try { const f = await state.db.doc("photoFull/" + p.id).get(); if (f.exists && PV.bookId === p.bookId && photosFor(PV.bookId)[PV.i] === p) $("pvImg").src = f.data().data; } catch (e) {}
+  }
+  function openPhoto(bookId) {
+    PV.bookId = bookId; PV.i = 0; PV.focus = document.activeElement;
+    $("photoViewer").hidden = false; document.documentElement.style.overflow = "hidden";
+    showPhoto(); $("photoViewer").querySelector(".lb-close").focus();
+  }
+  function closePhoto() {
+    $("photoViewer").hidden = true; PV.bookId = null;
+    if ($("sheet").hidden && $("lightbox").hidden && $("bookEditor").hidden) document.documentElement.style.overflow = "";
+    if (PV.focus && PV.focus.focus) PV.focus.focus();
+  }
+  const stepPhoto = (d) => { const n = photosFor(PV.bookId).length; if (n < 2) return; PV.i = (PV.i + d + n) % n; showPhoto(); };
+  $("photoViewer").addEventListener("click", e => { if (e.target.closest("[data-pv-close]")) closePhoto(); });
+  $("pvPrev").addEventListener("click", () => stepPhoto(-1));
+  $("pvNext").addEventListener("click", () => stepPhoto(1));
+  let pvX = null;
+  $("pvImg").addEventListener("touchstart", e => { pvX = e.touches[0].clientX; }, { passive: true });
+  $("pvImg").addEventListener("touchend", e => { if (pvX == null) return; const dx = e.changedTouches[0].clientX - pvX; pvX = null; if (Math.abs(dx) > 40) stepPhoto(dx < 0 ? 1 : -1); });
+  $("pvDelete").addEventListener("click", async () => {
+    const p = photosFor(PV.bookId)[PV.i]; if (!p) return;
+    if (!PV.confirm) { PV.confirm = true; $("pvDelete").textContent = "Tap again to delete"; return; }
+    const ok = await guard(() => state.db.batch([{ op: "delete", path: "photos/" + p.id }, { op: "delete", path: "photoFull/" + p.id }]));
+    if (ok) { notice("Photo deleted."); closePhoto(); }
+  });
 
   async function downscale(file) {
     try {
@@ -1157,6 +1283,10 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     else if (act === "book-yes") { const id = t.dataset.id; state.confirmBook = null; guard(() => state.db.doc("books/" + id).delete()); }
     else if (act === "cover") { state.coverFor = t.dataset.id; $("coverInput").click(); }
     else if (act === "zoom") { openLightbox(t.dataset.id); }
+    else if (act === "photo-add") { state.photoFor = t.dataset.id; $("photoInput").click(); }
+    else if (act === "photo-cancel") { state.photoDraft = null; render(); }
+    else if (act === "photo-post") { postPhoto(); }
+    else if (act === "photo-open") { openPhoto(t.dataset.id); }
     else if (act === "book-edit") { const b = state.books.find(x => x.id === t.dataset.id); if (b) openEditor({ kind: "shelf", id: b.id }, b); }
     else if (act === "cover-clear") { const id = t.dataset.id; guard(() => state.db.doc("books/" + id).update({ coverId: null })); }
   });
@@ -1644,8 +1774,9 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   document.addEventListener("click", e => { if (!e.target.closest(".menu-wrap")) closeMenu(false); });
   $("sheet").addEventListener("click", e => { if (e.target.closest("[data-close]")) closeSheet(); const t = e.target.closest("[data-tab]"); if (t) showTab(t.dataset.tab); });
   document.addEventListener("keydown", e => {
+    if (!$("photoViewer").hidden && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { stepPhoto(e.key === "ArrowLeft" ? -1 : 1); return; }
     if (e.key !== "Escape") return;
-    if (!$("menuList").hidden) closeMenu(true); else if (!$("voteResults").hidden) closeResults(); else if (!$("bookEditor").hidden) closeEditor(); else if (!$("lightbox").hidden) closeLightbox(); else if (!$("sheet").hidden) closeSheet();
+    if (!$("menuList").hidden) closeMenu(true); else if (!$("voteResults").hidden) closeResults(); else if (!$("photoViewer").hidden) closePhoto(); else if (!$("bookEditor").hidden) closeEditor(); else if (!$("lightbox").hidden) closeLightbox(); else if (!$("sheet").hidden) closeSheet();
   });
 
   // Goodreads: look up the book's page via Open Library (Goodreads itself blocks browser requests).
@@ -1926,6 +2057,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       state.ready = true; render();
     }, () => { state.ready = true; notice("Lost connection to the shelf. Reload to reconnect.", true); render(); });
     window.claude.use("assets").then(a => { if (a) { state.assets = a; render(); } });
+    db.collection("photos").onSnapshot(snap => { state.photos = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, () => {});
     db.collection("covers").onSnapshot(snap => {
       const m = {}; snap.docs.forEach(d => { const x = d.data(); if (x && x.data) m[d.id] = x.data; });
       state.coverData = m; render();
