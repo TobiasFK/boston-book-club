@@ -209,16 +209,24 @@ h2 { font-size: 22px; font-weight: 600; }
 .chip.confirm .yes { width: auto; padding: 0 8px; border-radius: 999px; color: var(--danger); font-weight: 700; font-size: 14px; }
 .chip.confirm .no { width: auto; padding: 0 8px; border-radius: 999px; font-size: 14px; }
 .reorder { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
-.reorder li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 6px 8px 6px 12px; }
+.reorder li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 6px 8px; align-items: center; padding: 8px 8px 10px 12px; }
+.reorder li .nm { grid-column: 2; grid-row: 1; font-weight: 700; white-space: normal; overflow-wrap: anywhere; }
+.reorder li .moves { grid-column: 3; grid-row: 1; }
+.reorder li .switch { grid-column: 2; grid-row: 2; justify-self: start; }
 .reorder li.is-old .nm { color: var(--muted); }
 .reorder li.confirming { grid-template-columns: minmax(0, 1fr) auto; }
+.switch { display: inline-flex; align-items: center; gap: 7px; border: 0; background: none; padding: 4px 2px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.switch .knob { position: relative; width: 32px; height: 18px; border-radius: 9px; background: var(--line); transition: background .15s; flex-shrink: 0; }
+.switch .knob::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s; }
+.switch[aria-checked="true"] { color: var(--ink); }
+.switch[aria-checked="true"] .knob { background: var(--accent); }
+.switch[aria-checked="true"] .knob::after { transform: translateX(14px); }
 .status { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 10px; font-size: 13px; white-space: nowrap; }
 .status[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .reorder .moves .rm { color: var(--danger); }
 .reorder .confirm-row { display: flex; gap: 6px; }
 .chip.old { background: none; color: var(--muted); border-style: dashed; }
 .sub-head { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 6px 0 0; }
-.rate.old .who { color: var(--muted); font-weight: 400; }
 .rate .tag { font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-left: 4px; }
 .members-box { display: flex; flex-direction: column; gap: 8px; }
 details.members-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
@@ -229,7 +237,7 @@ details.members-panel[open] summary::after { transform: rotate(180deg); }
 .members-body { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 12px; }
 .members-actions { display: flex; justify-content: flex-end; }
 .members-actions:has(> [hidden]:only-child) { display: none; }
-.reorder .since { grid-column: 2 / -1; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); min-width: 0; }
+.reorder .since { grid-column: 2 / -1; grid-row: 3; white-space: nowrap; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); min-width: 0; }
 .reorder .since select { flex: 1 1 auto; min-width: 0; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 14px; color: var(--ink); }
 .chip .since-tag { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .reorder li + li { border-top: 1px solid var(--line); }
@@ -423,6 +431,9 @@ textarea { font: inherit; color: inherit; background: var(--surface); border: 1p
 .ed-cover .cover { width: 120px; }
 .ed-cover .btn { padding: 7px 10px; font-size: 13px; }
 .ed-cover .link-btn { font-size: 12px; align-self: center; }
+.ed-raters { display: flex; flex-wrap: wrap; gap: 6px; }
+.ed-rater { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px 5px 9px; font-size: 14px; cursor: pointer; }
+.ed-rater:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
 .ed-fields { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .ed-fields input[type="url"] { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; width: 100%; font: inherit; color: inherit; }
 @media (max-width: 480px) { .ed-grid { grid-template-columns: minmax(0, 1fr); } .ed-cover { flex-direction: row; flex-wrap: wrap; align-items: center; } .ed-cover .cover { width: 84px; } }
@@ -687,6 +698,10 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
         <div class="field"><label for="edAuthor">Author</label><input type="text" id="edAuthor" maxlength="100"></div>
         <div class="field"><label for="edMonth">Month we read it</label><input type="month" id="edMonth"></div>
         <div class="field"><label for="edPicked">Picked by</label><select class="plain" id="edPicked"></select></div>
+        <div class="field" id="edRatersField">
+          <label>Also let these members rate this book</label>
+          <div class="ed-raters" id="edRaters"></div>
+        </div>
         <div class="field" id="edGrField"><label for="edGr">Goodreads link (found automatically if left empty)</label><input type="url" id="edGr" maxlength="300" placeholder="https://www.goodreads.com/book/show/…"></div>
       </div>
     </div>
@@ -734,7 +749,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
 
   function avgFor(book) {
     const r = book.ratings || {};
-    const vals = state.settings.members.filter(m => !beforeJoin(m, book)).map(m => r[m]).filter(v => typeof v === "number");
+    const vals = state.settings.members.filter(m => countsFor(m, book)).map(m => r[m]).filter(v => typeof v === "number");
     if (!vals.length) return { avg: null, n: 0 };
     return { avg: vals.reduce((a, b) => a + b, 0) / vals.length, n: vals.length };
   }
@@ -763,8 +778,8 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   const byRecent = (a, b) => (a.readOn && b.readOn && a.readOn !== b.readOn) ? b.readOn.localeCompare(a.readOn) : (b.createdAt || 0) - (a.createdAt || 0);
   let chronoIdx = new Map(), chrono = [];
   function chronology() { return state.books.slice().sort((a, b) => byRecent(b, a)); }
-  // A member's membership is a list of stints: {from: bookId|"" (from the start), to: ""|"*"|bookId}.
-  // to "" = still active; "*" = inactive, date unknown; bookId = inactive from that book on (exclusive).
+  // Membership: "Member since" (a book id, or "" for from the start) and an active/inactive toggle.
+  // Stored as periods[m] = [{from: since, to: "" (active) | "*" (inactive)}]; older multi-stint data is read the same way.
   function periodsOf(m) {
     const p = state.settings.periods[m];
     return Array.isArray(p) && p.length ? p : [{ from: "", to: "" }];
@@ -777,14 +792,13 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const f = idxOf(p.from), i = idxOf(book.id);
     return f != null && i != null && i < f;
   }
-  function inClubFor(m, book) {
-    const i = idxOf(book.id);
-    return periodsOf(m).some(p => {
-      if (p.to === "*") return false;
-      const f = p.from ? idxOf(p.from) : 0, t = p.to ? idxOf(p.to) : null;
-      return (f == null || i >= f) && (t == null || i < t);
-    });
-  }
+  function memberInfo(m) { const ps = periodsOf(m); return { since: ps[0].from || "", active: ps[ps.length - 1].to === "" }; }
+  function setMember(m, patch) { const x = { ...memberInfo(m), ...patch }; savePeriods(m, [{ from: x.since, to: x.active ? "" : "*" }]); }
+  // Active members get a rating slot on every book from their start; inactive members show where they rated.
+  function inClubFor(m, book) { return memberInfo(m).active && !beforeJoin(m, book); }
+  // Members the organizer added to a specific book (e.g. read it while inactive or before joining).
+  const extraRaters = (book) => Array.isArray(book.raters) ? book.raters : [];
+  const countsFor = (m, book) => extraRaters(book).includes(m) || !beforeJoin(m, book);
   function migratePeriods(d) {
     if (d.periods && typeof d.periods === "object") return d.periods;
     const out = {}, former = Array.isArray(d.former) ? d.former : [], joined = (d.joined && typeof d.joined === "object") ? d.joined : {};
@@ -832,7 +846,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const members = state.settings.members;
     const books = state.books.map(b => {
       const r = b.ratings || {};
-      const vals = members.filter(m => typeof r[m] === "number" && !beforeJoin(m, b)).map(m => ({ m, v: r[m] }));
+      const vals = members.filter(m => typeof r[m] === "number" && countsFor(m, b)).map(m => ({ m, v: r[m] }));
       return { b, vals, avg: vals.length ? mean(vals.map(x => x.v)) : null, sd: vals.length >= 3 ? sd(vals.map(x => x.v)) : null };
     });
     const all = books.flatMap(x => x.vals.map(y => ({ ...y, book: x })));
@@ -913,7 +927,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     </div>`;
   }
 
-  const isInactive = (m) => { const p = periodsOf(m); return p[p.length - 1].to !== ""; };
+  const isInactive = (m) => !memberInfo(m).active;
   const activeMembers = () => state.settings.members.filter(m => !isInactive(m));
   const shortDate = (b) => b.readOn ? `${MONTHS[+b.readOn.slice(5) - 1]} ’${b.readOn.slice(2, 4)}` : b.title;
   function bookOptions(selected, firstLabel, firstValue, after) {
@@ -921,11 +935,6 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     return `<option value="${firstValue}">${firstLabel}</option>` + chrono.slice(startI).map(b => `<option value="${esc(b.id)}"${b.id === selected ? " selected" : ""}>${esc(b.title)}${b.readOn ? ` (${MONTHS[+b.readOn.slice(5) - 1]} ${b.readOn.slice(0, 4)})` : ""}</option>`).join("");
   }
   function savePeriods(m, list) { saveSettings({ periods: { ...state.settings.periods, [m]: list } }); }
-  function lastRatedIdx(m) {
-    let best = -1;
-    for (const b of state.books) if (typeof (b.ratings || {})[m] === "number") best = Math.max(best, idxOf(b.id) ?? -1);
-    return best;
-  }
 
   const editingSelectIn = (el) => { const a = document.activeElement; return !!(a && a.tagName === "SELECT" && el && el.contains(a)); };
   function renderMembers() {
@@ -943,27 +952,17 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
         if (state.confirmMember === m) {
           return `<li class="confirming"><span class="nm">Remove ${esc(m)} and hide their ratings?</span><span class="confirm-row"><button class="btn ghost danger" style="color:var(--danger)" data-act="member-yes" data-name="${esc(m)}" type="button">Remove</button><button class="btn ghost" data-act="member-no" type="button">Keep</button></span></li>`;
         }
-        const off = isInactive(m), ps = periodsOf(m), n = esc(m);
-        const lines = ps.map((p, k) => {
-          const fromSel = `<label class="since">${k === 0 ? "Member since" : "Back from"} <select data-act="period" data-name="${n}" data-k="${k}" data-f="from">${bookOptions(p.from, k === 0 ? "From the start" : "Pick a book", "", k > 0 && ps[k - 1].to && ps[k - 1].to !== "*" ? null : null)}</select></label>`;
-          const toSel = p.to === "" ? "" : `<label class="since">Inactive from <select data-act="period" data-name="${n}" data-k="${k}" data-f="to">${bookOptions(p.to === "*" ? "" : p.to, "Unknown date", "*")}</select></label>`;
-          return fromSel + toSel;
-        }).join("");
-        const extra = ps.length > 1 ? `<button class="link-btn quiet since" style="grid-column:2/-1;justify-self:start" type="button" data-act="drop-stint" data-name="${n}">Undo last return</button>` : "";
+        const info = memberInfo(m), off = !info.active, n = esc(m);
         return `<li class="${off ? "is-old" : ""}"><span class="pos">${i + 1}</span><span class="nm">${n}</span>
-          <button class="status" type="button" data-act="${off ? "add-back" : "make-inactive"}" data-name="${n}" aria-pressed="${off}" aria-label="${n}: ${off ? "inactive, tap to add back" : "active, tap to mark inactive"}">${off ? "Add back" : "Active"}</button>
+          <button class="switch" type="button" role="switch" data-act="toggle-active" data-name="${n}" aria-checked="${info.active}" aria-label="${n} is ${info.active ? "active" : "inactive"}"><span class="knob" aria-hidden="true"></span>${info.active ? "Active" : "Inactive"}</button>
           <span class="moves"><button type="button" data-act="move" data-i="${i}" data-d="-1" aria-label="Move ${n} up"${i === 0 ? " disabled" : ""}>↑</button><button type="button" data-act="move" data-i="${i}" data-d="1" aria-label="Move ${n} down"${i === members.length - 1 ? " disabled" : ""}>↓</button><button class="rm" type="button" data-act="member-ask" data-name="${n}" aria-label="Remove ${n}">×</button></span>
-          ${lines}${extra}</li>`;
-      }).join("") + `</ol><p class="muted">Order sets how ratings are listed on every book. Rating slots only appear on books read while someone was an active member. Ratings they already gave always show.</p>`;
+          <label class="since">Member since <select data-act="since" data-name="${n}">${bookOptions(info.since, "From the start", "")}</select></label></li>`;
+      }).join("") + `</ol><p class="muted">Order sets how ratings are listed on every book. Active members get a rating slot on every book from their start; inactive members only show where they rated. To let anyone rate a specific book, use Edit book on the shelf.</p>`;
       return;
     }
     const tagFor = (m) => {
-      const ps = periodsOf(m), last = ps[ps.length - 1];
-      if (last.to === "*") return "";
-      const toB = last.to && state.books.find(x => x.id === last.to);
-      if (toB) return `<span class="since-tag">inactive since ${esc(shortDate(toB))}</span>`;
-      const fromB = last.from && state.books.find(x => x.id === last.from);
-      return fromB ? `<span class="since-tag">${ps.length > 1 ? "back since" : "since"} ${esc(shortDate(fromB))}</span>` : "";
+      const fromB = memberInfo(m).since && state.books.find(x => x.id === memberInfo(m).since);
+      return fromB ? `<span class="since-tag">since ${esc(shortDate(fromB))}</span>` : "";
     };
     const chip = (m, cls) => `<span class="chip plain${cls}">${esc(m)}${tagFor(m)}</span>`;
     $("chips").innerHTML = `<div class="members-box"><div class="chips">${active.map(m => chip(m, "")).join("") || `<p class="muted">No active members.</p>`}</div>` +
@@ -1004,12 +1003,12 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       const { avg, n } = avgFor(book);
       const r = book.ratings || {};
       const locked = !canEditShelf();
-      const shown = members.filter(m => !beforeJoin(m, book) && (typeof r[m] === "number" || inClubFor(m, book)));
+      const shown = members.filter(m => extraRaters(book).includes(m) || (!beforeJoin(m, book) && (typeof r[m] === "number" || inClubFor(m, book))));
       const cells = shown.map(m => {
         const v = typeof r[m] === "number" ? r[m] : null;
         const opts = `<option value="">Not rated</option>` + STEPS.map(s => `<option value="${s}"${v === s ? " selected" : ""}>${s} ★</option>`).join("");
-        return `<div class="rate${v == null ? " empty" : ""}${locked ? " locked" : ""}${isInactive(m) ? " old" : ""}">
-          <span class="who">${esc(m)}${isInactive(m) ? `<span class="tag">inactive</span>` : ""}</span>
+        return `<div class="rate${v == null ? " empty" : ""}${locked ? " locked" : ""}">
+          <span class="who">${esc(m)}</span>
           <span class="line">${starsHTML(v)}<span class="val">${v == null ? (locked ? "–" : "Rate") : v.toFixed(1)}</span></span>
           <select data-act="rate" data-id="${esc(book.id)}" data-name="${esc(m)}" aria-label="${esc(m)}'s rating for ${esc(book.title)}">${opts}</select>
         </div>`;
@@ -1145,16 +1144,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     if (act === "member-ask") { state.confirmMember = t.dataset.name; render(); }
     else if (act === "member-no") { state.confirmMember = null; render(); }
     else if (act === "member-yes") { const n = t.dataset.name; state.confirmMember = null; const periods = { ...state.settings.periods }; delete periods[n]; saveSettings({ members: state.settings.members.filter(m => m !== n), periods }); }
-    else if (act === "make-inactive") {
-      const n = t.dataset.name, ps = periodsOf(n).map(p => ({ ...p })), next = chrono[lastRatedIdx(n) + 1];
-      ps[ps.length - 1].to = (lastRatedIdx(n) >= 0 && next) ? next.id : "*";
-      savePeriods(n, ps);
-    }
-    else if (act === "add-back") {
-      const n = t.dataset.name, latest = chrono[chrono.length - 1];
-      savePeriods(n, [...periodsOf(n).map(p => ({ ...p })), { from: latest ? latest.id : "", to: "" }]);
-    }
-    else if (act === "drop-stint") { const n = t.dataset.name, ps = periodsOf(n).slice(0, -1); savePeriods(n, ps); }
+    else if (act === "toggle-active") { const n = t.dataset.name; setMember(n, { active: !memberInfo(n).active }); }
     else if (act === "move") {
       const i = +t.dataset.i, j = i + +t.dataset.d, list = state.settings.members.slice();
       if (j < 0 || j >= list.length) return;
@@ -1171,12 +1161,8 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     else if (act === "cover-clear") { const id = t.dataset.id; guard(() => state.db.doc("books/" + id).update({ coverId: null })); }
   });
   document.addEventListener("change", e => {
-    const ps = e.target.closest('select[data-act="period"]');
-    if (ps) {
-      const n = ps.dataset.name, list = periodsOf(n).map(p => ({ ...p }));
-      list[+ps.dataset.k][ps.dataset.f] = ps.value;
-      savePeriods(n, list); return;
-    }
+    const ss = e.target.closest('select[data-act="since"]');
+    if (ss) { setMember(ss.dataset.name, { since: ss.value }); return; }
     const s = e.target.closest('select[data-act="rate"]'); if (!s) return;
     const val = s.value === "" ? null : Number(s.value);
     const id = s.dataset.id, name = s.dataset.name;
@@ -1768,6 +1754,12 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     const gr = typeof b.goodreads === "string" ? b.goodreads : (b.goodreads && b.goodreads.url) || "";
     $("edGr").value = gr;
     $("edGrField").hidden = target.kind !== "shelf";
+    // Members who wouldn't get a slot on this book by default (inactive, or before their start).
+    const book = target.kind === "shelf" ? state.books.find(x => x.id === target.id) : null;
+    const extra = book ? extraRaters(book) : [];
+    const candidates = book ? state.settings.members.filter(m => extra.includes(m) || !(inClubFor(m, book) || (!beforeJoin(m, book) && typeof (book.ratings || {})[m] === "number"))) : [];
+    $("edRatersField").hidden = !book || !candidates.length;
+    $("edRaters").innerHTML = candidates.map((m, i) => `<label class="ed-rater"><input type="checkbox" id="edR${i}" value="${esc(m)}"${extra.includes(m) ? " checked" : ""}> ${esc(m)}</label>`).join("");
     $("edCoverBtn").hidden = !state.assets;
     drawEditorCover();
     $("bookEditor").hidden = false; document.documentElement.style.overflow = "hidden";
@@ -1789,7 +1781,8 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     closeEditor();
     if (t.kind === "shelf") {
       const cur = state.books.find(x => x.id === t.id) || {};
-      const data = { ...cur, ...f, goodreads: gr ? { url: gr } : null };
+      const raters = [...$("edRaters").querySelectorAll("input:checked")].map(x => x.value);
+      const data = { ...cur, ...f, goodreads: gr ? { url: gr } : null, raters };
       delete data.id; if (!data.coverId) data.coverId = null;
       if (await guard(() => state.db.doc("books/" + t.id).set(data)) && !gr) addGoodreads(t.id, f.title, f.author);
     } else if (t.kind === "pick") {
