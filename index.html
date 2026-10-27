@@ -460,6 +460,23 @@ textarea { font: inherit; color: inherit; background: var(--surface); border: 1p
 .pick-box .pk-act { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .done-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 6px; }
 .done-row span { flex: 1 1 220px; font-size: 14px; }
+.sheet-panel:has(#ratingsPanel:not([hidden])) { width: min(980px, 100%); }
+.ov-tools { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.ov-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.ov-wrap { overflow: auto; max-height: calc(100vh - 230px); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table.ov { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ov th, .ov td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
+.ov thead th { position: sticky; top: 0; z-index: 2; background: var(--surface); font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .04em; color: var(--muted); }
+.ov .ov-book { position: sticky; left: 0; z-index: 1; background: var(--surface); text-align: left; min-width: 150px; max-width: 190px; border-right: 1px solid var(--line); font-weight: 600; }
+.ov thead .ov-book { z-index: 3; }
+.ov .ov-t { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov .ov-d { display: block; font-family: var(--mono); font-size: 10.5px; font-weight: 400; color: var(--muted); }
+.ov td { font-family: var(--mono); min-width: 44px; background: color-mix(in srgb, var(--star) calc(var(--h, 0) * 38%), var(--surface)); }
+.ov td.ov-avg { font-weight: 700; color: var(--ink); border-right: 1px solid var(--line); }
+.ov tfoot th, .ov tfoot td { border-bottom: 0; border-top: 2px solid var(--line); font-weight: 700; position: sticky; bottom: 0; }
+.ov tfoot th { font-family: var(--body); font-size: 12px; }
+@media (max-width: 480px) { .ov .ov-book { min-width: 112px; max-width: 132px; } .ov th, .ov td { padding: 7px 6px; } }
+.ov .ov-n { display: block; font-size: 10px; font-weight: 400; color: var(--muted); }
 .gal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .gal-item { display: flex; flex-direction: column; gap: 6px; padding: 0; border: 0; background: none; text-align: left; cursor: zoom-in; min-width: 0; }
 .gal-item img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; background: var(--line); }
@@ -574,6 +591,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
         <button class="menu-btn" id="menuBtn" type="button" aria-haspopup="menu" aria-controls="menuList" aria-expanded="false"><span class="burger" aria-hidden="true"><i></i><i></i><i></i></span>Menu</button>
         <div class="menu-list" id="menuList" role="menu" aria-label="Go to" hidden>
           <button role="menuitem" type="button" data-go="home">Home</button>
+          <button role="menuitem" type="button" data-go="ratingsPanel">Ratings overview</button>
           <button role="menuitem" type="button" data-go="galleryPanel">Gallery</button>
           <button role="menuitem" type="button" data-go="statsPanel">Club stats</button>
           <button role="menuitem" type="button" data-go="membersPanel">Members</button>
@@ -669,6 +687,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     <div class="sheet-head">
       <div class="tabs" role="tablist" aria-label="Menu sections">
         <button class="tab" role="tab" type="button" id="tabStats" data-tab="statsPanel" aria-controls="statsPanel" aria-selected="true">Club stats</button>
+        <button class="tab" role="tab" type="button" id="tabRatings" data-tab="ratingsPanel" aria-controls="ratingsPanel" aria-selected="false">Ratings</button>
         <button class="tab" role="tab" type="button" id="tabGallery" data-tab="galleryPanel" aria-controls="galleryPanel" aria-selected="false">Gallery</button>
         <button class="tab" role="tab" type="button" id="tabMembers" data-tab="membersPanel" aria-controls="membersPanel" aria-selected="false">Members <span class="cnt" id="memberCount"></span></button>
         <button class="tab write-only" role="tab" type="button" id="tabPast" data-tab="pastPanel" aria-controls="pastPanel" aria-selected="false">Past votes</button>
@@ -683,6 +702,17 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
           <li class="hl"><span class="hl-label"><b>3</b> Books read</span><span class="hl-title hl-big" id="hlCount">0</span><span class="hl-score" id="hlSince"></span></li>
         </ol>
         <div id="stats"></div>
+      </section>
+      <section class="drawer" id="ratingsPanel" role="tabpanel" aria-labelledby="tabRatings" hidden>
+        <div class="drawer-head"><h2>Ratings overview</h2></div>
+        <div class="ov-tools">
+          <div class="toolbar" role="group" aria-label="Sort books">
+            <button class="seg" type="button" data-ov-sort="recent" aria-pressed="true">Most recent</button>
+            <button class="seg" type="button" data-ov-sort="top" aria-pressed="false">Highest rated</button>
+          </div>
+          <label class="ov-check"><input type="checkbox" id="ovInactive"> Show inactive members</label>
+        </div>
+        <div id="ovTable"></div>
       </section>
       <section class="drawer" id="galleryPanel" role="tabpanel" aria-labelledby="tabGallery" hidden>
         <div class="drawer-head"><h2>Gallery</h2><span class="muted" id="galleryCount"></span></div>
@@ -1046,6 +1076,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     renderMembers();
     renderStats();
     renderVote();
+    renderOverview();
     const canAdd = canEditShelf() && V.isAdmin;
     $("addBookBtn").hidden = !canAdd;
     if (!canAdd) $("addPanel").hidden = true;
@@ -1187,6 +1218,37 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     state.photoDraft = ok ? null : { ...d, busy: false }; render();
     if (ok) notice("Photo posted.");
   }
+  // Ratings overview (Menu → Ratings overview): every book × every member in one table
+  state.ovSort = "recent";
+  function renderOverview() {
+    const el = $("ovTable"); if (!el || $("ratingsPanel").hidden) return;
+    document.querySelectorAll("[data-ov-sort]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.ovSort === state.ovSort)));
+    const showInactive = $("ovInactive").checked;
+    const books = state.books.slice().sort(state.ovSort === "top" ? (a, b) => (avgFor(b).avg ?? -1) - (avgFor(a).avg ?? -1) : byRecent);
+    const val = (m, b) => { const v = (b.ratings || {})[m]; return typeof v === "number" && countsFor(m, b) ? v : null; };
+    const cols = state.settings.members.filter(m => showInactive || !isInactive(m));
+    if (!books.length) { el.innerHTML = `<p class="muted">No books on the shelf yet.</p>`; return; }
+    const heat = (v) => v == null ? "" : ` style="--h:${(v / 5).toFixed(2)}"`;
+    const first = (m) => m.split(" ")[0];
+    const head = `<tr><th class="ov-book" scope="col">Book</th><th scope="col" class="ov-avg">Avg</th>${cols.map(m => `<th scope="col" title="${esc(m)}">${esc(first(m))}</th>`).join("")}</tr>`;
+    const rows = books.map(b => {
+      const a = avgFor(b);
+      const when = b.readOn ? `${MONTHS[+b.readOn.slice(5) - 1]} ’${b.readOn.slice(2, 4)}` : "";
+      return `<tr><th scope="row" class="ov-book"><span class="ov-t">${esc(b.title)}</span>${when ? `<span class="ov-d">${when}</span>` : ""}</th>
+        <td class="ov-avg"${heat(a.avg)}>${a.avg == null ? "–" : fmt(a.avg)}</td>
+        ${cols.map(m => { const v = val(m, b); return `<td${heat(v)} title="${esc(m)}: ${v == null ? "no rating" : v}">${v == null ? "" : v.toFixed(1)}</td>`; }).join("")}</tr>`;
+    }).join("");
+    const foot = `<tr><th scope="row" class="ov-book">Member average</th><td class="ov-avg"></td>${cols.map(m => {
+      const vs = books.map(b => val(m, b)).filter(v => v != null);
+      const av = vs.length ? vs.reduce((x, y) => x + y, 0) / vs.length : null;
+      return `<td${heat(av)} title="${esc(m)}: ${vs.length} rated">${av == null ? "–" : f1(av)}<span class="ov-n">${vs.length}</span></td>`;
+    }).join("")}</tr>`;
+    el.innerHTML = `<div class="ov-wrap"><table class="ov"><thead>${head}</thead><tbody>${rows}</tbody><tfoot>${foot}</tfoot></table></div>
+      <p class="st-note">Scroll sideways for more members. The small number under each member average is how many books they rated.</p>`;
+  }
+  document.addEventListener("click", e => { const b = e.target.closest("[data-ov-sort]"); if (b) { state.ovSort = b.dataset.ovSort; renderOverview(); } });
+  $("ovInactive").addEventListener("change", renderOverview);
+
   // Gallery (Menu → Gallery): every photo, newest meeting first, labelled with its book
   function renderGallery() {
     const grid = $("galleryGrid"); if (!grid || $("galleryPanel").hidden) return;
@@ -1766,7 +1828,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   function showTab(id) {
     document.querySelectorAll("[data-tab]").forEach(t => { const on = t.dataset.tab === id; t.setAttribute("aria-selected", String(on)); $(t.dataset.tab).hidden = !on; });
     try { localStorage.setItem("bcs-tab", id); } catch (e) {}
-    renderStats(); if (id === "pastPanel") renderPast(); if (id === "galleryPanel") renderGallery(); if (id === "membersPanel") renderOrganizers();
+    renderStats(); if (id === "pastPanel") renderPast(); if (id === "galleryPanel") renderGallery(); if (id === "ratingsPanel") renderOverview(); if (id === "membersPanel") renderOrganizers();
   }
   function openSheet(want) {
     let tab = want || "statsPanel";
@@ -1801,7 +1863,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   $("menuList").addEventListener("click", e => {
     const b = e.target.closest("[data-go]"); if (!b) return;
     const go = b.dataset.go; closeMenu(false);
-    if (go === "statsPanel" || go === "membersPanel" || go === "pastPanel" || go === "galleryPanel") return openSheet(go);
+    if (go === "statsPanel" || go === "membersPanel" || go === "pastPanel" || go === "galleryPanel" || go === "ratingsPanel") return openSheet(go);
     if (go === "home") {
       if (!$("sheet").hidden) closeSheet();
       const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
