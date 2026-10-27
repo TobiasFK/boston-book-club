@@ -284,7 +284,8 @@ details.add[open] summary::after { content: "–"; }
 /* Laptop/desktop: bigger cover and title so the top of each card fills its width */
 @media (min-width: 700px) {
   .card { padding: 22px; gap: 18px; }
-  .card-top { grid-template-columns: 150px minmax(0, 1fr); gap: 24px; align-items: center; }
+  .card-top { grid-template-columns: 150px minmax(0, 1fr); gap: 24px; align-items: start; }
+  .card-top .book-meta { padding-top: 4px; }
   .card-top .cover { width: 150px; }
   .card-top .cover.gen { padding: 16px 10px 12px 16px; }
   .card-top .cover.gen .gt { font-size: 17px; }
