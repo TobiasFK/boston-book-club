@@ -1404,10 +1404,14 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   });
   document.addEventListener("change", e => {
     const ss = e.target.closest('select[data-act="since"]');
-    if (ss) { setMember(ss.dataset.name, { since: ss.value }); return; }
+    if (ss) { ss.blur(); setMember(ss.dataset.name, { since: ss.value }); return; }
     const s = e.target.closest('select[data-act="rate"]'); if (!s) return;
     const val = s.value === "" ? null : Number(s.value);
     const id = s.dataset.id, name = s.dataset.name;
+    // Release the dropdown and show the new score right away (the save happens in the background).
+    s.blur();
+    state.books = state.books.map(b => b.id === id ? { ...b, ratings: { ...(b.ratings || {}), [name]: val } } : b);
+    render();
     guard(() => state.db.doc("books/" + id).update({ ratings: { [name]: val } }));
   });
 
