@@ -445,6 +445,12 @@ textarea { font: inherit; color: inherit; background: var(--surface); border: 1p
 .pick-box .pk-act { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .done-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 6px; }
 .done-row span { flex: 1 1 220px; font-size: 14px; }
+.gal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.gal-item { display: flex; flex-direction: column; gap: 6px; padding: 0; border: 0; background: none; text-align: left; cursor: zoom-in; min-width: 0; }
+.gal-item img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; background: var(--line); }
+.gal-label { display: flex; flex-direction: column; font-size: 13px; line-height: 1.3; min-width: 0; }
+.gal-label b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gal-label span { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: .06em; }
 .meet-photo { margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .mp-btn { position: relative; display: block; width: 100%; padding: 0; border: 0; background: var(--bg); border-radius: 10px; overflow: hidden; cursor: zoom-in; }
 .mp-btn img { display: block; width: 100%; aspect-ratio: 3 / 2; max-height: 340px; object-fit: cover; }
@@ -553,6 +559,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
         <button class="menu-btn" id="menuBtn" type="button" aria-haspopup="menu" aria-controls="menuList" aria-expanded="false"><span class="burger" aria-hidden="true"><i></i><i></i><i></i></span>Menu</button>
         <div class="menu-list" id="menuList" role="menu" aria-label="Go to" hidden>
           <button role="menuitem" type="button" data-go="home">Home</button>
+          <button role="menuitem" type="button" data-go="galleryPanel">Gallery</button>
           <button role="menuitem" type="button" data-go="statsPanel">Club stats</button>
           <button role="menuitem" type="button" data-go="membersPanel">Members</button>
           <button role="menuitem" type="button" data-go="pastPanel" class="write-only">Past votes</button>
@@ -647,6 +654,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     <div class="sheet-head">
       <div class="tabs" role="tablist" aria-label="Menu sections">
         <button class="tab" role="tab" type="button" id="tabStats" data-tab="statsPanel" aria-controls="statsPanel" aria-selected="true">Club stats</button>
+        <button class="tab" role="tab" type="button" id="tabGallery" data-tab="galleryPanel" aria-controls="galleryPanel" aria-selected="false">Gallery</button>
         <button class="tab" role="tab" type="button" id="tabMembers" data-tab="membersPanel" aria-controls="membersPanel" aria-selected="false">Members <span class="cnt" id="memberCount"></span></button>
         <button class="tab write-only" role="tab" type="button" id="tabPast" data-tab="pastPanel" aria-controls="pastPanel" aria-selected="false">Past votes</button>
       </div>
@@ -660,6 +668,10 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
           <li class="hl"><span class="hl-label"><b>3</b> Books read</span><span class="hl-title hl-big" id="hlCount">0</span><span class="hl-score" id="hlSince"></span></li>
         </ol>
         <div id="stats"></div>
+      </section>
+      <section class="drawer" id="galleryPanel" role="tabpanel" aria-labelledby="tabGallery" hidden>
+        <div class="drawer-head"><h2>Gallery</h2><span class="muted" id="galleryCount"></span></div>
+        <div id="galleryGrid"></div>
       </section>
       <section class="drawer" id="pastPanel" role="tabpanel" aria-labelledby="tabPast" hidden>
         <div class="drawer-head"><h2>Past votes</h2><span class="muted">Only organizers see this</span></div>
@@ -1159,6 +1171,23 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     state.photoDraft = ok ? null : { ...d, busy: false }; render();
     if (ok) notice("Photo posted.");
   }
+  // Gallery (Menu → Gallery): every photo, newest meeting first, labelled with its book
+  function renderGallery() {
+    const grid = $("galleryGrid"); if (!grid || $("galleryPanel").hidden) return;
+    const order = new Map(chrono.map((b, i) => [b.id, i]));
+    const items = state.photos.filter(p => state.books.some(b => b.id === p.bookId))
+      .sort((a, b) => (order.get(b.bookId) ?? -1) - (order.get(a.bookId) ?? -1) || (a.at || 0) - (b.at || 0));
+    $("galleryCount").textContent = items.length ? `${items.length} photo${items.length === 1 ? "" : "s"}` : "";
+    if (!items.length) { grid.innerHTML = `<p class="muted">No photos yet. Add one from a book on the shelf with “+ Add a photo from this meeting”.</p>`; return; }
+    grid.innerHTML = `<div class="gal-grid">${items.map(p => {
+      const b = state.books.find(x => x.id === p.bookId), i = photosFor(p.bookId).indexOf(p);
+      const when = b.readOn ? `${MONTHS[+b.readOn.slice(5) - 1]} ${b.readOn.slice(0, 4)}` : "";
+      return `<button class="gal-item" type="button" data-act="photo-open" data-id="${esc(p.bookId)}" data-i="${i}" aria-label="Open photo from ${esc(b.title)}">
+        <img src="${p.thumb}" alt="${esc(p.caption || "Meeting for " + b.title)}" loading="lazy">
+        <span class="gal-label"><b>${esc(b.title)}</b>${when ? `<span>${when}</span>` : ""}</span></button>`;
+    }).join("")}</div>`;
+  }
+
   // Viewer
   const PV = { bookId: null, i: 0 };
   async function showPhoto() {
@@ -1171,8 +1200,8 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     $("pvDelete").hidden = !canDeletePhoto(p); $("pvDelete").textContent = "Delete photo"; PV.confirm = false;
     try { const f = await state.db.doc("photoFull/" + p.id).get(); if (f.exists && PV.bookId === p.bookId && photosFor(PV.bookId)[PV.i] === p) $("pvImg").src = f.data().data; } catch (e) {}
   }
-  function openPhoto(bookId) {
-    PV.bookId = bookId; PV.i = 0; PV.focus = document.activeElement;
+  function openPhoto(bookId, i) {
+    PV.bookId = bookId; PV.i = Math.max(0, Math.min(+i || 0, photosFor(bookId).length - 1)); PV.focus = document.activeElement;
     $("photoViewer").hidden = false; document.documentElement.style.overflow = "hidden";
     showPhoto(); $("photoViewer").querySelector(".lb-close").focus();
   }
@@ -1286,7 +1315,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     else if (act === "photo-add") { state.photoFor = t.dataset.id; $("photoInput").click(); }
     else if (act === "photo-cancel") { state.photoDraft = null; render(); }
     else if (act === "photo-post") { postPhoto(); }
-    else if (act === "photo-open") { openPhoto(t.dataset.id); }
+    else if (act === "photo-open") { openPhoto(t.dataset.id, t.dataset.i); }
     else if (act === "book-edit") { const b = state.books.find(x => x.id === t.dataset.id); if (b) openEditor({ kind: "shelf", id: b.id }, b); }
     else if (act === "cover-clear") { const id = t.dataset.id; guard(() => state.db.doc("books/" + id).update({ coverId: null })); }
   });
@@ -1721,7 +1750,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   function showTab(id) {
     document.querySelectorAll("[data-tab]").forEach(t => { const on = t.dataset.tab === id; t.setAttribute("aria-selected", String(on)); $(t.dataset.tab).hidden = !on; });
     try { localStorage.setItem("bcs-tab", id); } catch (e) {}
-    renderStats(); if (id === "pastPanel") renderPast(); if (id === "membersPanel") renderOrganizers();
+    renderStats(); if (id === "pastPanel") renderPast(); if (id === "galleryPanel") renderGallery(); if (id === "membersPanel") renderOrganizers();
   }
   function openSheet(want) {
     let tab = want || "statsPanel";
@@ -1756,7 +1785,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   $("menuList").addEventListener("click", e => {
     const b = e.target.closest("[data-go]"); if (!b) return;
     const go = b.dataset.go; closeMenu(false);
-    if (go === "statsPanel" || go === "membersPanel" || go === "pastPanel") return openSheet(go);
+    if (go === "statsPanel" || go === "membersPanel" || go === "pastPanel" || go === "galleryPanel") return openSheet(go);
     if (go === "home") {
       if (!$("sheet").hidden) closeSheet();
       const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -2057,7 +2086,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       state.ready = true; render();
     }, () => { state.ready = true; notice("Lost connection to the shelf. Reload to reconnect.", true); render(); });
     window.claude.use("assets").then(a => { if (a) { state.assets = a; render(); } });
-    db.collection("photos").onSnapshot(snap => { state.photos = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, () => {});
+    db.collection("photos").onSnapshot(snap => { state.photos = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); renderGallery(); }, () => {});
     db.collection("covers").onSnapshot(snap => {
       const m = {}; snap.docs.forEach(d => { const x = d.data(); if (x && x.data) m[d.id] = x.data; });
       state.coverData = m; render();
