@@ -519,7 +519,7 @@ table.ov { width: 100%; border-collapse: separate; border-spacing: 0; font-size:
 .review { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .review-head { display: flex; justify-content: space-between; align-items: baseline; }
 .vote-name { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); flex-wrap: wrap; }
-.vote-name select { flex: 1 1 200px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; }
+.vote-name input { flex: 1 1 200px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; }
 .voted-names { color: var(--ink) !important; font-weight: 600; }
 .sealed { display: flex; flex-direction: column; gap: 2px; border: 1.5px dashed var(--line); border-radius: 10px; padding: 14px 16px; text-align: center; }
 .sealed strong { font-family: var(--display); font-size: 17px; font-weight: 600; }
@@ -1408,8 +1408,11 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     else if (act === "book-edit") { const b = state.books.find(x => x.id === t.dataset.id); if (b) openEditor({ kind: "shelf", id: b.id }, b); }
     else if (act === "cover-clear") { const id = t.dataset.id; guard(() => state.db.doc("books/" + id).update({ coverId: null })); }
   });
+  document.addEventListener("input", e => {
+    if (e.target.id === "voteName") { V.voteName = e.target.value; if (V.nameErr && e.target.value.trim()) { V.nameErr = false; const er = $("voteNameErr"); if (er) er.hidden = true; } }
+  });
   document.addEventListener("change", e => {
-    if (e.target.id === "voteName") { V.voteName = e.target.value; V.nameErr = false; e.target.blur(); renderVote(); return; }
+    if (e.target.id === "voteName") { V.voteName = e.target.value.trim(); return; }
     const ss = e.target.closest('select[data-act="since"]');
     if (ss) { ss.blur(); setMember(ss.dataset.name, { since: ss.value }); return; }
     const s = e.target.closest('select[data-act="rate"]'); if (!s) return;
@@ -1522,7 +1525,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   }
 
   function renderVote() {
-    if (editingSelectIn($("votePanel"))) return;
+    if (editingSelectIn($("votePanel")) || (document.activeElement && document.activeElement.id === "voteName")) return;
     const head = $("voteHead"), list = $("voteList"), admin = $("voteAdmin"), form = $("suggestForm"), hist = $("voteHistory");
     if (!head) return;
     const r = currentRound();
@@ -1592,15 +1595,13 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       head.innerHTML = `<h2>Next book: voting</h2>${themeHTML}<p class="muted">${k > 1 ? `Pick your top ${k} in order (${pts}).` : "Pick one book."} Your name shows as having voted, but your picks stay anonymous. ${n} ballot${n === 1 ? "" : "s"} in so far.</p>`;
       const changed = JSON.stringify(d) !== JSON.stringify(saved ? (saved.picks || []).slice(0, k) : null);
       const myName = V.voteName != null ? V.voteName : (rec.voterName || "");
-      const taken = V.voters.filter(x => x.id !== V.uid).map(x => x.name);
-      const roster = state.settings.members.filter(m => !isInactive(m)).concat(state.settings.members.filter(isInactive));
-      const nameSel = `<label class="vote-name">Your name <select id="voteName" aria-required="true"><option value="">Choose your name</option>${roster.map(m => `<option value="${esc(m)}"${m === myName ? " selected" : ""}${taken.includes(m) && m !== myName ? " disabled" : ""}>${esc(m)}${taken.includes(m) && m !== myName ? " (voted)" : ""}</option>`).join("")}</select></label>`;
+      const nameSel = `<label class="vote-name">Your name <input type="text" id="voteName" maxlength="60" autocomplete="given-name" placeholder="Type your name" aria-required="true" value="${esc(myName)}"></label>`;
       const nameChanged = saved && myName && myName !== rec.voterName;
       const tray = canAct ? `<div class="ballot">
           <div class="ballot-slots">${Array.from({ length: k }, (_, i) => { const s = sugs.find(x => x.id === d[i]); return `<div class="slot${s ? " full" : ""}"><span class="slot-n">${ORD[i]}</span><span class="slot-t">${s ? esc(s.title) : "Tap a book below"}</span></div>`; }).join("")}</div>
           ${nameSel}
           <div class="ballot-act">${saved && !changed && !nameChanged ? `<span class="ok">✓ Your ballot is in as ${esc(rec.voterName || "you")}. You can change it until voting closes.</span>` : `<button class="btn" type="button" data-vact="cast"${d.length ? "" : " disabled"}${V.busy ? " disabled" : ""}>${saved ? "Update my ballot" : "Cast my ballot"}</button>${d.length && d.length < k ? `<span class="muted">You can also leave picks empty.</span>` : ""}`}</div>
-          <p class="gate-err" id="voteNameErr"${V.nameErr ? "" : " hidden"}>Choose your name before casting your ballot.</p>
+          <p class="gate-err" id="voteNameErr"${V.nameErr ? "" : " hidden"}>Enter your name before casting your ballot.</p>
         </div>` : "";
       const names = V.voters.map(x => x.name).filter(Boolean).sort((a, b) => a.localeCompare(b));
       const votedNote = `<div class="sealed"><strong>${n} ${n === 1 ? "person has" : "people have"} voted</strong>${names.length ? `<span class="voted-names">${names.map(esc).join(" · ")}</span>` : ""}<span>Results stay hidden until the organizer closes voting.</span></div>`;
@@ -1699,7 +1700,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     if (act === "cast") {
       if (V.busy || r.phase !== "vote") return;
       const rec = myRec(r);
-      const name = ($("voteName") && $("voteName").value) || "";
+      const name = (($("voteName") && $("voteName").value) || "").trim().slice(0, 60);
       if (!name) { V.nameErr = true; renderVote(); if ($("voteName")) $("voteName").focus(); return; }
       V.nameErr = false; V.busy = true; renderVote();
       const ref = rec.ballotId ? state.db.doc("ballots/" + rec.ballotId) : state.db.collection("ballots").doc();
