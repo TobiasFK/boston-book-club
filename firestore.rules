@@ -70,6 +70,14 @@ service cloud.firestore {
       allow delete: if organizer()
         || (inClub() && !existsAfter(/databases/$(database)/documents/rounds/$(rid)/suggestions/$(sid)));
     }
+    // Names of who has voted in a round (one per device). Not linked to the anonymous ballots.
+    match /rounds/{rid}/voters/{uid} {
+      allow read: if inClub();
+      allow create, update: if inClub() && request.auth.uid == uid && phase(rid) == 'vote'
+        && request.resource.data.keys().hasOnly(['name'])
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 60;
+      allow delete: if organizer();
+    }
     match /ballots/{id} {
       allow read: if inClub();
       allow create: if inClub()

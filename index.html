@@ -518,6 +518,9 @@ table.ov { width: 100%; border-collapse: separate; border-spacing: 0; font-size:
 .past-round .results { margin-top: 10px; }
 .review { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .review-head { display: flex; justify-content: space-between; align-items: baseline; }
+.vote-name { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); flex-wrap: wrap; }
+.vote-name select { flex: 1 1 200px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; }
+.voted-names { color: var(--ink) !important; font-weight: 600; }
 .sealed { display: flex; flex-direction: column; gap: 2px; border: 1.5px dashed var(--line); border-radius: 10px; padding: 14px 16px; text-align: center; }
 .sealed strong { font-family: var(--display); font-size: 17px; font-weight: 600; }
 .sealed span { color: var(--muted); font-size: 14px; }
@@ -1406,6 +1409,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     else if (act === "cover-clear") { const id = t.dataset.id; guard(() => state.db.doc("books/" + id).update({ coverId: null })); }
   });
   document.addEventListener("change", e => {
+    if (e.target.id === "voteName") { V.voteName = e.target.value; V.nameErr = false; e.target.blur(); renderVote(); return; }
     const ss = e.target.closest('select[data-act="since"]');
     if (ss) { ss.blur(); setMember(ss.dataset.name, { since: ss.value }); return; }
     const s = e.target.closest('select[data-act="rate"]'); if (!s) return;
@@ -1429,7 +1433,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   const currentRound = () => V.rounds.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0] || null;
   // Suggestions live under their round. While a round is collecting suggestions the rules keep them sealed,
   // so members' listener is refused; re-subscribe whenever the round or its phase changes.
-  let sugKey = null, sugUnsub = null, tallyUnsub = null;
+  let sugKey = null, sugUnsub = null, tallyUnsub = null, votersUnsub = null;
   // If the organizer removed one of my suggestions, forget it so I can suggest another.
   function pruneRemoved(r) {
     if (V.isAdmin || !Array.isArray(V.tallyIds) || V.pruning) return;
@@ -1460,6 +1464,10 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     V.suggestions = []; V.sealed = false; V.sugCount = null; V.tallyIds = null;
     if (!r) return;
     // Everyone can see how many books are in (tally markers carry no details).
+    if (votersUnsub) { votersUnsub(); votersUnsub = null; }
+    V.voters = [];
+    // Who has voted (names only; ballots stay anonymous and aren't linked to names)
+    votersUnsub = state.db.collection("rounds/" + r.id + "/voters").onSnapshot(snap => { V.voters = snap.docs.map(d => ({ id: d.id, name: (d.data() || {}).name || "" })); renderVote(); }, () => {});
     tallyUnsub = state.db.collection("rounds/" + r.id + "/tally").onSnapshot(snap => { V.tallyIds = snap.docs.map(d => d.id); V.sugCount = V.tallyIds.length; healTally(r); renderVote(); }, () => {});
     if (r.phase === "suggest" || (r.phase === "review" && !V.isAdmin)) { V.sealed = true; return; }
     sugUnsub = state.db.collection("rounds/" + r.id + "/suggestions").onSnapshot(
@@ -1514,6 +1522,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
   }
 
   function renderVote() {
+    if (editingSelectIn($("votePanel"))) return;
     const head = $("voteHead"), list = $("voteList"), admin = $("voteAdmin"), form = $("suggestForm"), hist = $("voteHistory");
     if (!head) return;
     const r = currentRound();
@@ -1580,13 +1589,21 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
       const d = V.draft.filter(id => sugs.some(s => s.id === id));
       const n = roundBallots(r).length;
       const pts = Array.from({ length: k }, (_, i) => `${ORD[i]} = ${k - i} pt${k - i > 1 ? "s" : ""}`).join(", ");
-      head.innerHTML = `<h2>Next book: voting</h2>${themeHTML}<p class="muted">${k > 1 ? `Pick your top ${k} in order (${pts}).` : "Pick one book."} Ballots don't show who cast them. ${n} ballot${n === 1 ? "" : "s"} in so far.</p>`;
+      head.innerHTML = `<h2>Next book: voting</h2>${themeHTML}<p class="muted">${k > 1 ? `Pick your top ${k} in order (${pts}).` : "Pick one book."} Your name shows as having voted, but your picks stay anonymous. ${n} ballot${n === 1 ? "" : "s"} in so far.</p>`;
       const changed = JSON.stringify(d) !== JSON.stringify(saved ? (saved.picks || []).slice(0, k) : null);
+      const myName = V.voteName != null ? V.voteName : (rec.voterName || "");
+      const taken = V.voters.filter(x => x.id !== V.uid).map(x => x.name);
+      const roster = state.settings.members.filter(m => !isInactive(m)).concat(state.settings.members.filter(isInactive));
+      const nameSel = `<label class="vote-name">Your name <select id="voteName" aria-required="true"><option value="">Choose your name</option>${roster.map(m => `<option value="${esc(m)}"${m === myName ? " selected" : ""}${taken.includes(m) && m !== myName ? " disabled" : ""}>${esc(m)}${taken.includes(m) && m !== myName ? " (voted)" : ""}</option>`).join("")}</select></label>`;
+      const nameChanged = saved && myName && myName !== rec.voterName;
       const tray = canAct ? `<div class="ballot">
           <div class="ballot-slots">${Array.from({ length: k }, (_, i) => { const s = sugs.find(x => x.id === d[i]); return `<div class="slot${s ? " full" : ""}"><span class="slot-n">${ORD[i]}</span><span class="slot-t">${s ? esc(s.title) : "Tap a book below"}</span></div>`; }).join("")}</div>
-          <div class="ballot-act">${saved && !changed ? `<span class="ok">✓ Your ballot is in. You can change it until voting closes.</span>` : `<button class="btn" type="button" data-vact="cast"${d.length ? "" : " disabled"}${V.busy ? " disabled" : ""}>${saved ? "Update my ballot" : "Cast my ballot"}</button>${d.length && d.length < k ? `<span class="muted">You can also leave picks empty.</span>` : ""}`}</div>
+          ${nameSel}
+          <div class="ballot-act">${saved && !changed && !nameChanged ? `<span class="ok">✓ Your ballot is in as ${esc(rec.voterName || "you")}. You can change it until voting closes.</span>` : `<button class="btn" type="button" data-vact="cast"${d.length ? "" : " disabled"}${V.busy ? " disabled" : ""}>${saved ? "Update my ballot" : "Cast my ballot"}</button>${d.length && d.length < k ? `<span class="muted">You can also leave picks empty.</span>` : ""}`}</div>
+          <p class="gate-err" id="voteNameErr"${V.nameErr ? "" : " hidden"}>Choose your name before casting your ballot.</p>
         </div>` : "";
-      const votedNote = `<div class="sealed"><strong>${n} ${n === 1 ? "person has" : "people have"} voted</strong><span>Results stay hidden until the organizer closes voting.</span></div>`;
+      const names = V.voters.map(x => x.name).filter(Boolean).sort((a, b) => a.localeCompare(b));
+      const votedNote = `<div class="sealed"><strong>${n} ${n === 1 ? "person has" : "people have"} voted</strong>${names.length ? `<span class="voted-names">${names.map(esc).join(" · ")}</span>` : ""}<span>Results stay hidden until the organizer closes voting.</span></div>`;
       list.innerHTML = votedNote + tray + `<div class="sg-list">${sugs.map(s => {
         const at = d.indexOf(s.id);
         const side = canAct ? `<div class="sg-side">${at >= 0 ? `<span class="rank">${ORD[at]}</span><button class="link-btn quiet" type="button" data-vact="unpick" data-id="${esc(s.id)}">Remove</button>` : `<button class="pick" type="button" data-vact="pick" data-id="${esc(s.id)}"${d.length >= k ? " disabled" : ""}>Pick${d.length < k ? ` as ${ORD[d.length]}` : ""}</button>`}</div>` : "";
@@ -1655,6 +1672,7 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
         { op: "delete", path: "rounds/" + r.id + "/tally/" + x.id }
       ]));
       for (const x of roundBallots(r)) await guard(() => state.db.doc("ballots/" + x.id).delete());
+      for (const x of (V.voters || [])) await guard(() => state.db.doc("rounds/" + r.id + "/voters/" + x.id).delete());
       await guard(() => state.db.doc("rounds/" + r.id).delete());
       return renderVote();
     }
@@ -1680,11 +1698,16 @@ details.past ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direc
     if (act === "unpick") { V.touched = true; V.draft = V.draft.filter(x => x !== t.dataset.id); return renderVote(); }
     if (act === "cast") {
       if (V.busy || r.phase !== "vote") return;
-      V.busy = true; renderVote();
       const rec = myRec(r);
+      const name = ($("voteName") && $("voteName").value) || "";
+      if (!name) { V.nameErr = true; renderVote(); if ($("voteName")) $("voteName").focus(); return; }
+      V.nameErr = false; V.busy = true; renderVote();
       const ref = rec.ballotId ? state.db.doc("ballots/" + rec.ballotId) : state.db.collection("ballots").doc();
-      const ok = await guard(() => ref.set({ roundId: r.id, picks: V.draft.slice(0, r.picks || 1) }));
-      if (ok && !rec.ballotId) { V.mine[r.id] = { ...rec, ballotId: ref.id }; await guard(() => saveMine(r.id)); }
+      const ok = await guard(() => state.db.batch([
+        { op: "set", path: "ballots/" + ref.id, data: { roundId: r.id, picks: V.draft.slice(0, r.picks || 1) } },
+        { op: "set", path: "rounds/" + r.id + "/voters/" + V.uid, data: { name } }
+      ]));
+      if (ok) { V.mine[r.id] = { ...rec, ballotId: ref.id, voterName: name }; V.voteName = null; await guard(() => saveMine(r.id)); }
       V.busy = false; return renderVote();
     }
     if (act === "close") { V.confirm = "close"; return renderVote(); }
